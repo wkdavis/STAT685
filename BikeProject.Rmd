@@ -25,9 +25,13 @@ library(lubridate)
 library(caret)
 library(gridExtra)
 library(corrplot)
+library(tidyr)
+library(GGally)
 ```
 
 http://archive.ics.uci.edu/ml/bikesets/Seoul+Bike+Sharing+Demand
+
+# Read Data
 
 ```{r read}
 bike <- readr::read_csv("SeoulBikeData.csv",
@@ -52,6 +56,7 @@ bike <- readr::read_csv("SeoulBikeData.csv",
                                          FunctionalDay = "f"))
 ```
 
+## Data Cleaning
 
 ```{r clean-ts}
 bikets <- bike %>%
@@ -65,9 +70,17 @@ bikets <- bike %>%
     Date = NULL
   ) %>%
   as_tsibble(index = Hour)
+
+bikets_tall <- bikets %>%
+  select(Hour, where(is.numeric)) %>%
+  pivot_longer(cols = -Hour,
+               names_to = "Measure",
+               values_to = "Value")
   
 bikets %>% count_gaps()
 ```
+
+# EDA
 
 ## Data Summary
 
@@ -81,8 +94,6 @@ summary(bikets) # Investigate BikeCount = 0 and Humidity = 0
 
 - Notice there are no missing values. However there are some observations with BikeCount = 0, which correspond to non-functional days. Can these be treated as missing values and be imputed? Non-functional days are only present in 2018. 
 - Humidity has a minimum value of 0. Is this realistic? (see feature plot for further investigation)
-
-
 
 
 ## Feature Plots
@@ -104,6 +115,11 @@ Something seems to be going on with humidity = 0 values.
 ## Correlation Plot
 
 ```{r echo=F}
+ggscatmat(bike, 
+          columns = c("BikeCount", "Temperature", "Humidity", "WindSpeed", 
+                      "Visibility", "Dewpoint", "SolarRadiation", "Rainfall", 
+                      "Snowfall"), 
+          alpha = .2)
 corrplot(cor(X), order = "hclust", tl.cex = .35)
 ```
 
@@ -137,42 +153,48 @@ grid.arrange(p1,p2,ncol=1)
 
 ## Time Series Plots
 
-* pair-plots
-* TS plots
-* ACF plot, KPSS test
-* STL decomp
-
 ```{r EDA}
 autoplot(bikets, .vars = BikeCount) + labs(title = "Bike Count by Hour")
-sapply(bikets, function(x) sum(is.na(x)))
 hist(bikets$BikeCount)
-# plot(select(select(bikets, -Hour), where(is.numeric)))
+bikets_tall %>%
+  ggplot(aes(x = Hour, y = Value, color = Measure)) +
+  geom_line() +
+  facet_grid(rows = vars(Measure), scales = "free_y")
+ACF(bikets_tall, Value) %>% autoplot()
+features(bikets_tall, Value, 
+         c(unitroot_kpss, unitroot_ndiffs, unitroot_nsdiffs, ljung_box))
 ```
 
+KPSS and Ljung-Box Test both indicate (auto)correlation within each
+variable.
 
-```{r ts-EDA}
-ACF(bikets, BikeCount) %>% autoplot()
-features(bikets, BikeCount, 
-         c(unitroot_kpss, ljung_box, unitroot_ndiffs, unitroot_nsdiffs))
-```
+# Modeling
 
-Very strong autocorrelation as expected, with a peak during the same hour of
-the previous day.
+## Time Series
 
-```{r model}
+* Prophet
+* fasster
+
+
+```{r model-prophet, eval=FALSE}
 library(fable.prophet)
+
+holidays <- bikets %>% 
+  filter(Holiday == "Holiday") %>%
+  mutate(ds = as.Date(Hour)) %>%
+  distinct(ds) %>% 
+  mutate(holiday = "holiday")
+
 fit <- bikets %>%
   model(
-    mdl = prophet(BikeCount ~ growth("linear") + season("day", type = "multiplicative") + season("week", type = "multiplicative")),
+    mdl = prophet(BikeCount ~ season(period = "day", type = "multiplicative") + season(period = "week", type = "multiplicative") + holiday(holidays = holidays)),
   )
 components(fit) %>% autoplot()
 
 ```
 
+## Machine Learning
 
-
-
-Modeling ideas:
-
-* Prophet
 * LSTM
+* RNN
+
