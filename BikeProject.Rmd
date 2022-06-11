@@ -124,6 +124,101 @@ Something seems to be going on with humidity = 0 values.
 
 \newpage
 
+## Scatter plots for numerical variables and box plot for categorical variables
+
+```{r EDA}
+library(gridExtra)
+
+level_order <- c('Spring', 'Summer', 'Autumn', 'Winter')
+
+season <- bike %>% 
+  ggplot(aes(factor(Seasons, levels = level_order), BikeCount, fill = Holiday)) +
+  geom_boxplot() + 
+  labs(x = "",y = 'Bike Rental Count', 
+       title = 'Bike Rental by Seasons') +
+  theme_bw()
+
+# rentals by hour, split by holiday (or not)
+hour <- bike %>% group_by(Hour, Holiday) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(x = Hour, y = AvgBikeCount, col = Holiday)) +
+  labs(x = "",y = 'Average Bike Rental', 
+       title = 'Average Bike Rental by Hours') +
+  geom_line() + theme_bw()
+
+bike %>%
+  ggplot(aes(Hour, BikeCount, col = factor(Hour))) +
+  geom_boxplot() + 
+  labs(x = "",y = 'Bike Rental Count', 
+       title = 'Bike Rental by Seasons') 
+
+
+bike %>% group_by(FunctionalDay) %>%
+  summarise(SumBikeCount = sum(BikeCount)) 
+unique(bike$FunctionalDay)
+#bike count of non-Functional day = 0. Agreed with treating them as NA.
+
+rainfall <- bike %>% group_by(Rainfall) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(Rainfall, AvgBikeCount)) +
+  geom_point() + 
+  labs(x = "Rainfall (mm)", y = 'Average Bike Rental', 
+       title = 'Average Bike Rental against Rainfall') + 
+  theme_bw()
+
+snowfall <- bike %>% group_by(Snowfall) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(Snowfall, AvgBikeCount)) +
+  geom_point() + 
+  labs(x = "Snowfall (cm)", y = 'Average Bike Rental',
+       title = 'Average Bike Rental against Snowfall') + theme_bw()
+
+temp <- bike %>% group_by(Temperature) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(Temperature, AvgBikeCount)) +
+  geom_point() + 
+  labs(x = "Temperature (celcius)", y = 'Average Bike Rental',
+       title = 'Average Bike Rental against Temperature') + theme_bw()
+
+humidity <- bike %>% group_by(Humidity) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(Humidity, AvgBikeCount)) +
+  geom_point() + 
+  labs(x = "Humidity (%)", y = 'Average Bike Rental',
+       title = 'Average Bike Rental against Humidity') + theme_bw()
+
+wp <- bike %>% group_by(WindSpeed) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(WindSpeed, AvgBikeCount)) +
+  geom_point() + 
+  labs(x = "WindSpeed (m/s)", y = 'Average Bike Rental',
+       title = 'Average Bike Rental against Wind Speed') + theme_bw()
+
+vis <- bike %>% group_by(Visibility) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(Visibility, AvgBikeCount)) +
+  geom_point() + 
+  labs(x = "Visibility (10m)", y = 'Average Bike Count',
+       title = 'Average Bike Rental against Visibility') + theme_bw()
+
+dew <- bike %>% group_by(Dewpoint) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(Dewpoint, AvgBikeCount)) +
+  geom_point() + 
+  labs(x = "Dewpoint (Celsius)", y = 'Average Bike Count',
+       title = 'Average Bike Rental against Dewpoint') + theme_bw()
+
+solar <- bike %>% group_by(SolarRadiation) %>%
+  summarise(AvgBikeCount = mean(BikeCount)) %>%
+  ggplot(aes(SolarRadiation, AvgBikeCount)) +
+  geom_point(stat='identity') + 
+  labs(x = "SolarRadiation (MJ/m2)", y = 'Average Bike Count',
+       title = 'Average Bike Rental against Solar Radiation') + theme_bw()
+
+grid.arrange(season, hour, nrow=2)
+grid.arrange(temp, dew, rainfall, snowfall, humidity, solar, wp, vis, nrow=4, ncol = 2)
+```
+
 ## Correlation Plot
 
 ```{r corr-plots, echo=F}
