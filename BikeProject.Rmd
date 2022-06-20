@@ -1,14 +1,14 @@
 ---
 title: "Seoul Bike Data"
-author: 
-  - William K Davis III
-  - Pei-Yin Yang
-  - Max Kutschinski
+author:
+- William K Davis III
+- Pei-Yin Yang
+- Max Kutschinski
 date: "`r Sys.Date()`"
 output:
   html_document:
     keep_md: yes
-editor_options: 
+editor_options:
   chunk_output_type: console
 ---
 
@@ -29,6 +29,7 @@ library(gridExtra)
 library(corrplot)
 library(tidyr)
 library(GGally)
+library(e1071)
 ```
 
 http://archive.ics.uci.edu/ml/bikesets/Seoul+Bike+Sharing+Demand
@@ -36,6 +37,7 @@ http://archive.ics.uci.edu/ml/bikesets/Seoul+Bike+Sharing+Demand
 # Read Data
 
 ```{r read}
+set.seed(123)
 bike <- readr::read_csv("SeoulBikeData.csv",
                         col_names = c("Date",
                                       "BikeCount",
@@ -92,9 +94,10 @@ anyNA(bikets)
 dim(bikets)
 str(bikets)
 summary(bikets) # Investigate BikeCount = 0 and Humidity = 0
+sum(bike$BikeCount==0) # 295 NAs
 ```
 
-- Notice there are no missing values. However there are some observations with BikeCount = 0, which correspond to non-functional days. Can these be treated as missing values and be imputed? Non-functional days are only present in 2018. 
+Notice there are no missing values. However there are some observations with BikeCount = 0, which correspond to non-functional days. Can these be treated as missing values and be imputed?
 - Humidity has a minimum value of 0. Is this realistic? (see feature plot for further investigation)
 
 ```{r functional-day-eda}
@@ -227,7 +230,7 @@ ggscatmat(bike,
                       "Visibility", "Dewpoint", "SolarRadiation", "Rainfall", 
                       "Snowfall"), 
           alpha = .2)
-corrplot(cor(X), order = "hclust", tl.cex = .35)
+corrplot(cor(X), order = "hclust", tl.cex = 1.4)
 ```
 
 Dewpoint and Temperature potentially problematic
@@ -275,6 +278,90 @@ features(bikets_tall, Value,
 KPSS and Ljung-Box Test both indicate (auto)correlation within each
 variable.
 
+## PCA
+
+```{r PCA}
+bike$Hour = as.factor(bike$Hour)
+
+# Correct for skewness for PCA purposes
+quantData = bike %>%
+  select_if(is.numeric)
+skewnessVec = quantData %>% sapply(., e1071::skewness)
+
+skewnessCriterion = abs(skewnessVec)> 1
+
+quantDataSkewedYJ = quantData %>%
+  select_if(skewnessCriterion) %>%
+  preProcess(method = 'YeoJohnson') %>%
+  predict(quantData %>% select_if(skewnessCriterion)) # apply Yeo-Johnson transformation
+
+quantDataNotSkewed = quantData %>%
+  select_if(!skewnessCriterion)
+
+quantDataCombined = cbind(quantDataSkewedYJ, quantDataNotSkewed)
+#
+
+# start PCA
+bikeCountPCA = prcomp(quantDataCombined,scale=TRUE,center=TRUE)
+XtransformPC = data.frame(bikeCountPCA$x)
+
+screeplot(bikeCountPCA,type='lines') # First two PCs are informative
+
+ggplot(data = XtransformPC, aes(x = PC1, y = PC2)) +
+  geom_point() +
+  coord_cartesian(xlim = c(min(XtransformPC$PC1,XtransformPC$PC2),max(XtransformPC$PC1,XtransformPC$PC2)), 
+                  ylim = c(min(XtransformPC$PC1,XtransformPC$PC2),max(XtransformPC$PC1,XtransformPC$PC2)))+
+  ggtitle("Summarizing via PCA")
+
+
+# Closer inspection of most extreme observation (bottom right)
+filter(bike,XtransformPC$PC1 == max(XtransformPC$PC1)) # doesn't look very unusual besides high Humidity
+
+
+```
+
+
+## Feature Engineering
+
+```{r FE}
+
+# Extract features from date
+bike$Day = factor(format(bikets$Hour, "%d"))
+bike$Month = factor(months(bikets$Hour, abbreviate= T)) 
+bike$WeekDay = factor(wday(bikets$Hour, label =F, week_start = 1), ordered = F)
+
+# drop last 3 rows since we're not using those. (Similar to Fold 51 in create_cv_folds.R)
+bike = slice(bike, 1:(n() - 3))
+
+# convert categorical features to numeric encoding
+factors = c("Seasons", "Holiday", "FunctionalDay", "Day", "Month", "WeekDay")
+bike[,factors] = sapply(bike[,factors], unclass)
+bike[,factors] <- lapply(bike[,factors], as.factor)
+
+# create dummy vars
+XQual = bike %>% 
+  select(-c(Date,BikeCount)) %>%
+  select_if(is.factor)
+dummyModel = dummyVars(~., data = XQual, fullRank=TRUE)
+XQualDummy = predict(dummyModel, XQual)
+XQuan = bike %>% select(-c(names(XQual),Date,BikeCount))
+XFull = cbind(XQualDummy, XQuan)
+```
+
+## Imputation
+
+```{r Imp}
+# Imputing values for Humidity using KNN
+# BikeCount NA values should be predicted rather than imputed since it is the supervisor and not a feature
+###
+
+XFull = XFull %>%
+  mutate(Humidity = ifelse(Humidity == 0, NA, Humidity))%>% # convert 0 to NA before imputing
+  select(Humidity) %>%
+  preProcess(method='knnImpute') %>% # Note that this automatically centers and scales Humidity
+  predict(newdata = XFull)
+```
+
 # Modeling
 
 ## Time Series
@@ -301,6 +388,44 @@ components(fit) %>% autoplot()
 ```
 
 ## Machine Learning
+
+### XGBoost
+
+```{r XGBoost}
+myTuneGrid = data.frame('nrounds'=c(200,500), #grid still needs tuning
+                       'max_depth'= 4,
+                       'eta' = 0.01,
+                       'gamma' = c(0,0.1),
+                       'colsample_bytree' = 0.8,
+                       'min_child_weight' = 1,
+                       'subsample' = 0.8) 
+
+myTrainControl = trainControl(method="timeslice", 
+                              initialWindow = nrow(bike)-(50*24),
+                              horizon = 24, 
+                              skip = 23,
+                              fixedWindow = TRUE)
+
+
+boostOut = train(XFull , bike$BikeCount,
+                 method = "xgbTree",
+                 tuneGrid = myTuneGrid,
+                 trControl = myTrainControl)
+
+boostOut$bestTune
+boostOut$results
+
+
+#sanity check
+#timeSlices <- createTimeSlices(1:nrow(bike), 
+#                   initialWindow = nrow(bike)-(50*24), horizon = 24, fixedWindow = T, skip = 23)
+
+#tail(bike[timeSlices$train$Training7581,],1)
+#bike[timeSlices$test$Testing7557,]
+
+```
+
+
 
 * LSTM
 * RNN
