@@ -272,36 +272,3 @@ features(bikets_tall, Value,
          c(unitroot_kpss, unitroot_ndiffs, unitroot_nsdiffs, ljung_box))
 ```
 
-KPSS and Ljung-Box Test both indicate (auto)correlation within each
-variable.
-
-# Modeling
-
-## Time Series
-
-* Prophet
-* fasster
-
-
-```{r model-prophet, eval=FALSE}
-library(fable.prophet)
-
-holidays <- bikets %>% 
-  filter(Holiday == "Holiday") %>%
-  mutate(ds = as.Date(Hour)) %>%
-  distinct(ds) %>% 
-  mutate(holiday = "holiday")
-
-fit <- bikets %>%
-  model(
-    mdl = prophet(BikeCount ~ season(period = "day", type = "multiplicative") + season(period = "week", type = "multiplicative") + holiday(holidays = holidays)),
-  )
-components(fit) %>% autoplot()
-
-```
-
-## Machine Learning
-
-* LSTM
-* RNN
-
