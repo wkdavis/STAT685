@@ -52,14 +52,31 @@ bikets <- read_csv(
 
 ## Create training and test folds
 
-ndays <- nrow(bikets)/24
-days_for_cv <- 50
+### tidyverts way
 
-bikes_train <- stretch_tsibble(bikets,
-                               .step = 24,
-                               .init = nrow(bikets)-(days_for_cv*24)-3,
-                               .id = "fold") %>%
-  filter(fold <= 50)
+bikets2 <- bikets %>%
+  mutate(rowid = row_number())
 
-bikes_test <- new_data(bikes_train, n = 27) %>%
-  inner_join(bikets, by = "Hour")
+bikets_cv <- filter_index(bikets2, . ~ "2018-10-11 23:00:00 KST")
+
+
+bikes_stretched <- stretch_tsibble(slice_head(bikets_cv, n = -24),
+                                   .step = 24,
+                                   .init = nrow(bikets_cv)*.8,
+                                   .id = "fold")
+
+bikes_stretched %>%
+  filter(fold == max(fold)) %>%
+  select(fold, rowid) %>%
+  tail()
+
+### caret way
+
+bikets_cv <- filter_index(bikets, . ~ "2018-10-11 23:00:00 KST")
+
+
+bikeslice <- createTimeSlices(bikets_cv$Hour,
+                              initialWindow = nrow(bikets_cv)*.8,
+                              horizon = 24,
+                              skip = 23,
+                              fixedWindow = FALSE)
