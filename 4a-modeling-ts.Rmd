@@ -25,6 +25,7 @@ library(gridExtra)
 library(corrplot)
 library(tidyr)
 library(GGally)
+library(fable)
 library(fable.prophet)
 ```
 
@@ -62,9 +63,6 @@ bikets <- readr::read_csv("SeoulBikeData.csv",
     Holiday = forcats::fct_relevel(Holiday, "No Holiday")
   ) %>%
   as_tsibble(index = Hour)
-
-bikets_tall %>%
-  features(Value, c(unitroot_kpss, unitroot_ndiffs, unitroot_nsdiffs, unitroot_pp, ljung_box))
 
 holidays <- bikets %>%
   filter(Holiday == "Holiday") %>%
@@ -105,8 +103,7 @@ bikets %>%
 bikearima <- bikets %>%
   mutate(BikeCount = na_if(BikeCount, 0)) %>%
   model( arimaACF = ARIMA(box_cox(BikeCount, l) ~ 0 + PDQ(0, 1, 1) + pdq(0, 1, 11)),
-         arimaPACF = ARIMA(box_cox(BikeCount, l) ~ 0 + PDQ(0, 1, 1) + pdq(9, 1, 0)),
-         arimaPACF = ARIMA(box_cox(BikeCount, l), stepwise = FALSE, approximation = FALSE))
+         arimaPACF = ARIMA(box_cox(BikeCount, l) ~ 0 + PDQ(0, 1, 1) + pdq(9, 1, 0)))
 gg_tsresiduals(bikearima)
 gg_tsresiduals(bikearima, type = "response")
 
@@ -141,14 +138,14 @@ prophet_fit <- bikets_int %>%
       log(BikeCount) ~ season(
         period = "day",
         type = "additive",
-        order = 50,
+        order = 10,
         name = "daily"
       ) + season(
         period = "week",
         type = "additive",
-        order = 50,
+        order = 5,
         name = "weekly"
-      ) + holiday(holidays = holidays) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + BikeCountL1 + BikeCountL24 + Seasons + growth())
+      ) + holiday(holidays = holidays) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed)
   )
 gg_tsresiduals(prophet_fit)
 residuals(prophet_fit) %>%

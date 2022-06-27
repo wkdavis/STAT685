@@ -26,6 +26,7 @@ library(fabletools)
 library(feasts)
 library(gridExtra)
 library(GGally)
+library(tidyr)
 options(scipen = 999)
 ```
 
@@ -316,8 +317,8 @@ ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
 newpage = FALSE)
 ```
 
-Continuing with the impact of seasonality and temperature on demand, we will next
-explore the covariates included with the dataset.
+Continuing with the impact of seasonality and temperature on demand, we will
+next explore covariates included with the dataset.
 
 ### Covariates
 
@@ -328,8 +329,54 @@ social. Weather covariates include variables such as temperature, humidity,
 precipitation, and others. Social variables capture the impact of calendar-based
 human behavior, such as holidays and weekends.
 
-```{r covariates, fig.width=8}
-# select(bikets, where(is.numeric)) %>%
-#   select(-Hour) %>%
-#   ggpairs()
+```{r covariate-timeplot, fig.cap="Covariate timeplots"}
+bikets %>%
+  select(Hour, where(is.numeric)) %>%
+  select(-BikeCount) %>%
+  pivot_longer(cols = -Hour,
+               names_to = "Measure",
+               values_to = "Value") %>%
+  ggplot(aes(x = Hour, y = Value, color = Measure)) +
+  geom_line() +
+  facet_grid(rows = vars(Measure), scales = "free_y") +
+  theme(legend.position = "none",
+        strip.text.y = element_text(size = 6))
 ```
+
+Time plots of the covariates (Figure D)
+show a dynamic set of variables. Most of the
+covariates appear to be typical time series data with varying degrees of
+trend, seasonality, cyclicality, autocorrelation, and heteroskedasticity.
+Dewpoint and Solar Radiation follow a predictable pattern that mirrors
+temperature throughout the year, with an upward trend peaking in the summer
+months and downward trend that hits a trough in the winter months. Humidity, 
+visibility, and Wind Speed appear to have less of a trend throughout the year.
+Precipitation (rainfall and snowfall) appears to have a much more random
+pattern throughout the year, with a large number of periods having no
+precipitation. Depending on the predictive performance of the raw continuous
+precipitation features, it may prove more performent to convert them to
+binary variables that simply indicate if precipitation occurred during that
+period.
+
+```{r corrplot, fig.width=8, fig.cap="Covariate correlation plot"}
+select(bikets, where(is.numeric)) %>%
+  as_tibble() %>%
+  select(-Hour) %>%
+  ggpairs() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        text = element_text(size = 8))
+```
+
+
+
+The correlation plot highlights a number of important relationships in the data.
+Bike count appears moderately linearly correlated with both temperature
+($\rho=0.563$) and dewpoint ($\rho=0.400$). However, this is significant
+multicollinearity between temperature and dewpoint ($\rho=0.913$), so
+additional analysis will be required to isolate the effect of each variable.
+Finally, we can see that a number of the covariates, such as wind speed,
+visibility, solar radiation, rainfall, and snowfall all appear to follow
+non-normal distributions. As such, their relationship to bike count might be
+best represented with a higher-order polynomial or other non-linear
+relationship.
