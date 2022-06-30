@@ -1,0 +1,53 @@
+---
+title: "Tree Methods"
+author: "Max Kutschinski"
+date: "`r Sys.Date()`"
+header-includes:
+  - \usepackage{amsmath}
+output:
+  pdf_document
+    
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+\newcommand{\argmin}{\mathop{\mathrm{argmin}}}
+
+
+
+## Random Forests
+
+Random forests is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing B unpruned trees from B bootstrap samples and averaging the predictions as displayed in Eq. (1).
+\begin{equation} 
+  \hat{f}_{bag}(x)=\frac{1}{B}\sum_{b=1}^{B}\hat{f^{*b}}(x)
+\end{equation}
+One notable drawback of bagging is that the individual trees can be very correlated depending on how strong the predictors are. Random forests addresses this issue by randomly selecting a subset of the features at each split and thus de-correlating the trees.
+
+## XGBoost 
+
+Gradient Boosting is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
+
+
+The first step is to initialize the model with a constant value $\gamma$, which can be obtained by solving the following optimization problem:
+\begin{equation} 
+  F_0(x)=\argmin_{\gamma}\sum_{i=1}^{n}L(y_i,\gamma)
+\end{equation}
+After specifying the number of base learners M, the following steps are repeated for each base learner from m=1 to m=M:
+
+First, the pseudo-residuals are calculated for each ith training example.
+ \begin{equation} 
+  r_{im}= -\left[\displaystyle \frac{\partial L(y_i,F(x_i))}{\partial F(x_i)}\right]_{F(x)=F_{m-1}(x)}
+ \end{equation}
+Then a base learner $h_m(x)$ is fit to the pseudo-residuals using the modified training set {${(x_i,r_{im})}_{i=1}^n$}.
+ 
+ Lastly, the model is updated as follows:
+\begin{equation}
+   F_m(x)= F_{m-1}(x)+\gamma_m h_m(x)\\
+\end{equation}
+\begin{center}where $\gamma_m=\argmin_{\gamma}\sum_{i=1}^{n}L(y_i,F_{m-1}(x_i)+\gamma h_m(x_i))$\end{center}
+
+XGBoost is a more regularized form of Gradient Boosting which uses L1 and L2 regularization to improve model generalization capabilities. It also allows for parallel processing, and has a built-in routine for handling missing values via its sparsity-aware split finding algorithm.
