@@ -1,0 +1,274 @@
+---
+title: "Seoul Bike Data"
+author:
+- William K Davis III
+- Pei-Yin Yang
+- Max Kutschinski
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document:
+    keep_md: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  cache = TRUE
+  )
+library(readr)
+library(dplyr)
+library(tsibble)
+library(fabletools)
+library(feasts)
+library(ggplot2)
+library(lubridate)
+library(caret)
+library(gridExtra)
+library(corrplot)
+library(tidyr)
+library(GGally)
+library(e1071)
+```
+
+
+
+```{r read, echo=F}
+# Read Data
+set.seed(123)
+
+bike <- readr::read_csv("SeoulBikeData.csv",
+                        col_names = c("Date",
+                                      "BikeCount",
+                                      "Hour",
+                                      "Temperature",
+                                      "Humidity",
+                                      "WindSpeed",
+                                      "Visibility",
+                                      "Dewpoint",
+                                      "SolarRadiation",
+                                      "Rainfall",
+                                      "Snowfall",
+                                      "Seasons",
+                                      "Holiday",
+                                      "FunctionalDay"),
+                        skip = 1,
+                        col_types = cols("Hour" = col_time(format = "%H"),
+                                         Seasons = "f", 
+                                         Holiday = "f",
+                                         FunctionalDay = "f"))
+
+bikets <- bike %>%
+  mutate(
+    Hour = parse_date_time(
+      paste(Date, Hour),
+      orders = c("dmy HMS", "dmY HMS"),
+      tz = "Asia/Seoul"
+    ),
+    .before = everything(),
+    Date = NULL
+  ) %>%
+  as_tsibble(index = Hour)
+```
+
+
+```{r FE, echo = F}
+## Feature Engineering
+
+
+# Create new features
+bike$Month = factor(months(bikets$Hour, abbreviate= T)) 
+bike$WeekDay = factor(wday(bikets$Hour, label =F, week_start = 1), ordered = F)
+bike$Hour = factor(format(bikets$Hour, "%H"))
+
+
+# convert categorical features to numeric encoding
+factors = c("Seasons", "Holiday", "FunctionalDay", "Hour")
+bike[,factors] = sapply(bike[,factors], unclass)
+bike[,factors] <- lapply(bike[,factors], as.factor)
+
+# create dummy vars
+XQual = bike %>% 
+  select(-c(Date,BikeCount)) %>%
+  select_if(is.factor)
+dummyModel = dummyVars(~., data = XQual, fullRank=TRUE)
+XQualDummy = predict(dummyModel, XQual)
+XQuan = bike %>% select(-c(names(XQual),Date,BikeCount))
+XFull = cbind(XQualDummy, XQuan)
+```
+
+
+
+```{r Imp, echo=F}
+## Imputation
+
+# Imputing values for Humidity using KNN
+
+
+XFull = XFull %>%
+  mutate(Humidity = ifelse(Humidity == 0, NA, Humidity))%>% # convert 0 to NA before imputing
+  select(Humidity) %>%
+  preProcess(method='knnImpute') %>% # Note that this automatically centers and scales Humidity
+  predict(newdata = XFull)
+```
+
+# Results
+
+### Baseline
+
+
+```{r Baseline, echo=F}
+## Baseline
+
+## Train until including 8pm. Make predictions for 9pm current day to 11pm next day.
+train_n <- nrow(bike)-(24*50+3)
+
+# test set
+timeSlices = createTimeSlices(1:nrow(bike),initialWindow = train_n,
+                              horizon = 27, 
+                              skip = 23,
+                              fixedWindow = FALSE)
+
+# covert train set indices to predictions
+predIndex = vector(mode= "list", length = 50)
+predictions = vector(mode= "list", length = 50)
+i = 1
+k = 1
+for (split in timeSlices$train){
+  predIndex[[i]] = tail(split,24)
+  for (j in 1:24){
+    predictions[[k]][j]= bike[[predIndex[[i]][j],"BikeCount"]]
+  }
+  i = i+1
+  k = k+1
+}
+
+# convert test set indices to actual values
+actual = vector(mode = "list", length = 50)
+k=1
+for (split in timeSlices$test){
+  for (j in 1:27){
+    actual[[k]][j]= bike[[split[j],"BikeCount"]]
+  }
+  k = k+1
+}
+
+
+# Calculate absolute residuals
+residuals = vector(mode= "list", length = 50)
+for (iteration in 1:50){
+  for (j in 1:27){
+    if (j < 25){residuals[[iteration]][j] = abs(actual[[iteration]][j] - predictions[[iteration]][j]) }else{
+      residuals[[iteration]][j] = abs(actual[[iteration]][j] - predictions[[iteration]][j-24])
+    }
+  }
+}
+
+# MAE
+baselineMAE = sum(sapply(residuals, sum))/(50*27)
+```
+
+The MAE of the baseline model is evaluated using TSCV and puts a lower bound of `r baselineMAE` on our metric.  
+
+### Random Forests
+
+```{r rf, echo=F, warning=F, message=F, error=F, include=F}
+doParallel::registerDoParallel(cores = 12)
+
+
+cv_n <- nrow(bike)-(24*50+3)
+bikecv <- slice_head(bike, n=cv_n)
+
+
+myTrainControl = trainControl(method="timeslice", 
+                              initialWindow = cv_n-(50*24),
+                              horizon = 27, 
+                              skip = 23,
+                              fixedWindow = FALSE,
+                              verboseIter = TRUE)
+
+myTestControl = trainControl(method="timeslice", 
+                              initialWindow = cv_n,
+                              horizon = 27, 
+                              skip = 23,
+                              fixedWindow = FALSE,
+                              verboseIter = TRUE)
+
+rfOut = train(XFull[1:cv_n,] , bike$BikeCount[1:cv_n],
+              metric = "MAE",
+              method = "ranger",
+              trControl = myTrainControl)
+
+#plot(rfOut)
+
+rfTestOut = train(XFull, bike$BikeCount,
+                 metric = "MAE",
+                 method = "ranger",
+                 tuneGrid = rfOut$bestTune,
+                 trControl = myTestControl)
+
+rfMAE = rfTestOut$results$MAE
+
+```
+
+Random Forests (RF) is implemented using the ranger package for increased computational speed. Note that RF is an algorithm that is known to provide good results in the default settings (Fernández-Delgado et al., 2014). The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features that are available at each split. In the regression case, p/3 is the default setting. When executing ranger via caret it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
+
+The hyperparameters of our model are evaluated using TSCV, yielding an optimal *mtry* value of 53. Such a high value is usually indicative of a high number of relevant predictors (Probst et al., 2019). On the test set, this model results in a MAE of `r round(rfMAE,1)` outperforming the baseline by a reasonable margin.
+
+
+### XGBoost
+
+```{r XGBoost, error=F, message=FALSE, warning=FALSE, include=FALSE}
+# Tuning Steps:
+#   1. Fix relatively high learning rate and determine the optimal number of trees 
+#      using default values for all other parameters
+#   2. Tune max_depth and min_child_weight
+#   3. Tune gamma
+#   4. Tune subsample and colsample_bytree
+#   5. Reduce learning rate and increase number of trees by proportional amount
+
+
+
+myTuneGrid = expand.grid('nrounds'=5000,
+                       'max_depth'= 8, # can use max_leaf_nodes insteads
+                       'eta' = 0.02, # learning rate
+                       'gamma' = 0, # min loss reduction per split
+                       'colsample_bytree' = 0.8, # fraction of random samples per tree
+                       'min_child_weight' = 1, # min sum of weights of all observations req by child
+                       'subsample' = 0.8) 
+
+
+boostOut = train(XFull[1:cv_n, ] , bike$BikeCount[1:cv_n],
+                 metric = "MAE",
+                 method = "xgbTree",
+                 tuneGrid = myTuneGrid,
+                 trControl = myTrainControl)
+
+#boostOut$bestTune
+#boostOut$results$MAE
+
+
+testOut = train(XFull, bike$BikeCount,
+                 metric = "MAE",
+                 method = "xgbTree",
+                 tuneGrid = boostOut$bestTune,
+                 trControl = myTestControl)
+
+XGBoostMAE = testOut$results$MAE
+#128.35
+```
+
+There are a variety of booster parameters in XGBoost that can be optimized via TSCV. Rather than tuning all parameters simultaneously, it often helps to make small changes incrementally (Banerjee, 2020). The general idea is to start with a high learning rate and a small number of base learners, then tune other parameters, and finally decrease the learning rate while proportionally increasing the number of trees. The other adjusted parameters are the maximum depth of a tree *max_depth*, the minimum required loss reduction *gamma*, the fraction of columns to be subsampled *colsample_bytree*, the minimum sum of weights of all observations required in a child *min_child_weight*, and the fraction of observations to be randomly sampled per tree *subsample*. 
+Using the outlined tuning approach, our best model produces a MAE of `r round(XGBoostMAE,1)` on the test set.
+
+
+## References
+
+Fernández-Delgado, M., Cernadas, E., Barro, S. and Amorim, D. (2014). "Do we need hundreds of classifiers
+to solve real world classification problems?" Journal of Machine Learning Research, 15, 3133–3181.
+
+Probst, P., Wright, M. N., and Boulesteix, A. L. (2019). "Hyperparameters and tuning strategies for Random Forest". WIREs Data Mining and Knowledge Discovery, 9(3). https://doi.org/10.1002/widm.1301 
+
+Banerjee, P. (2020). “A Guide on XGBoost Hyperparameters Tuning”. Kaggle, https://www.kaggle.com/code/prashant111/a-guide-on-xgboost-hyperparameters-tuning/notebook. 
