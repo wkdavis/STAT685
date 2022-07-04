@@ -17,6 +17,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 \newcommand{\argmin}{\mathop{\mathrm{argmin}}}
 
+## Baseline
+
+A common-sense, non-machine learning baseline serves as a sanity check and is often used to establish a baseline of comparison for more advanced machine learning models. 
+
+In this case, bike demand can be assumed to be periodical with a daily period. Given hourly data, a common-sense baseline is to predict the bike demand at time t to be equal to the bike demand at time t-24.
+
+\begin{equation} 
+  \hat{x}_t=x_{t-24}
+\end{equation}
 
 
 ## Random Forests
@@ -29,8 +38,7 @@ One notable drawback of bagging is that the individual trees can be very correla
 
 ## XGBoost 
 
-Gradient Boosting is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
-
+XGBoost is an advanced implementation of Gradient Boosting, which is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
 
 The first step is to initialize the model with a constant value $\gamma$, which can be obtained by solving the following optimization problem:
 \begin{equation} 
