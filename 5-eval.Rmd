@@ -119,5 +119,39 @@ of the second stage will be on YY.
 # Results
 
 ```{r results}
+bikets_test_stretched <- bikets %>%
+  mutate(BikeCount = na_if(BikeCount, 0),
+         Workday = factor(gsub(" ", "", as.character(Workday)), levels = c("Workday", "NotWorkday")),
+         BikeCountL1 = lag(BikeCount, 1),
+         BikeCountL2 = lag(BikeCount, 2),
+         BikeCountL3 = lag(BikeCount, 3),
+         BikeCountL4 = lag(BikeCount, 4),
+         BikeCountL5 = lag(BikeCount, 5),
+         BikeCountL6 = lag(BikeCount, 6),
+         BikeCountL7 = lag(BikeCount, 7),
+         BikeCountL8 = lag(BikeCount, 8),
+         BikeCountL9 = lag(BikeCount, 9),
+         BikeCountL10 = lag(BikeCount, 10),
+         BikeCountL11 = lag(BikeCount, 11),
+         BikeCountL12 = lag(BikeCount, 12),
+         BikeCountL24 = lag(BikeCount, 24)) %>%
+  tidyr::fill(starts_with("BikeCountL"), .direction = "downup") %>%
+  slice(n=-(1:24)) %>%
+  slice_head(n = -24) %>%
+  stretch_tsibble(.step = 24,
+                  .init = nrow(bikets_cv),
+                  .id = "fold")
 
+new_data(bikets_cv_stretched, n = 24) %>%
+            inner_join(bikets, by = "Hour") %>%
+            mutate(
+              BikeCount = na_if(BikeCount, 0),
+              Workday = factor(
+                gsub(" ", "", as.character(Workday)),
+                levels = c("Workday", "NotWorkday")
+              )
+            )
+# ARIMA
+
+# Prophet
 ```

@@ -81,10 +81,6 @@ bikets_cv_stretched <- stretch_tsibble(slice_head(bikets_cv, n = -24),
                                    .init = nrow(bikets_cv)*.8,
                                    .id = "fold")
 
-bikets_test_stretched <- stretch_tsibble(bikets,
-                                        .step = 24,
-                                   .init = nrow(bikets_cv),
-                                   .id = "fold")
 ```
 
 # Modeling
@@ -212,10 +208,10 @@ model; the seasonality is omitted from the ARIMA process because it is captured
 by the fourier terms).
 
 ```{r arima-fourier, fig.height=4, fig.cap="Residuals for an ARIMAX(2,1,2) model with daily & weekly fourier terms"}
-allfits <- readRDS("allfits.RDS")
-bike_fourier <- allfits[,"ARIMAfourier"]
-# bike_fourier <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(2,1,2) + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
-bike_fourier %>%
+# ARIMAfourier <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
+# ARIMAfourier <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(2,1,2) + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
+ARIMAfourier <- readRDS("ARIMAfourier.RDS")
+ARIMAfourier %>%
   residuals() %>%
   gg_tsdisplay(.resid, plot_type = "partial", lag_max = 24*7) +
   labs(title = "ARIMAX(2,1,2) with daily & weekly fourier terms")
@@ -236,10 +232,10 @@ the algorithm developed by (@autoarima). This resulted in the selection of an
 $SARIMA(1,0,1)\times(5,1,0)_{24}$ for $x_t$.
 
 ```{r auto-sarima, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$"}
-allfits <- readRDS("allfits.RDS")
-bike_autoarima <- allfits[,"ARIMAauto"]
-# bike_autoarima <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(1,0,1) + PDQ(5,1,0) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
-bike_autoarima %>%
+# ARIMAauto <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ() + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
+# ARIMAauto <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(1,0,1) + PDQ(5,1,0) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
+ARIMAauto <- readRDS("ARIMAauto.RDS")
+ARIMAauto %>%
   residuals() %>%
   gg_tsdisplay(.resid, plot_type = "partial", lag_max = 24*7)+
   labs(title = expression(paste("SARIMAX(1,0,1)"%*%"(5,1,0)"[24])))
@@ -282,7 +278,49 @@ $m\in\{1, 2, 5, 10, 20, 50\}$ and $n\in\{3, 5, 10, 20, 50\}$, giving us
 $6\times5=30$ possible parameter combinations.
 
 ```{r prophet-cv, fig.cap="Cross-validated MAE for Prophet models with various numbers of (daily and weekly) fourier terms", fig.height=3, fig.width=3}
-structure(list(day = structure(c(1L, 1L, 1L, 1L, 1L, 2L, 2L, 
+holidays <- bikets_cv %>%
+  filter(Holiday == "Holiday") %>%
+  mutate(ds = as.Date(Hour)) %>%
+  distinct(ds) %>%
+  mutate(holiday = "holiday")
+
+## Fourier terms
+# prophet_fourier_cv <- expand_grid(day = c(1, 2, 5, 10, 20, 50),
+#                                   week = c(3, 5, 10, 20, 50)) %>%
+#   mutate(
+#     mdl = future_map2(day, week, function(d, w, bikets_cv_stretched, l, bikets) {
+#       bikets_cv_stretched %>%
+#         model(
+#           prophet = prophet(
+#             box_cox(BikeCount, l) ~ season(
+#               period = "day",
+#               type = "additive",
+#               order = d,
+#               name = "day"
+#             ) + season(
+#               period = "week",
+#               type = "additive",
+#               order = w,
+#               name = "week"
+#             ) + growth() + Workday + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons
+#           )
+#         ) %>%
+#         forecast(
+#           new_data = new_data(bikets_cv_stretched, n = 24) %>%
+#             inner_join(bikets, by = "Hour") %>%
+#             mutate(
+#               BikeCount = na_if(BikeCount, 0),
+#               Workday = factor(
+#                 gsub(" ", "", as.character(Workday)),
+#                 levels = c("Workday", "NotWorkday")
+#               )
+#             )
+#         ) %>%
+#         accuracy(data = bikets)
+#     }, bikets_cv_stretched = bikets_cv_stretched, l = l, bikets = bikets, .options = furrr_options(seed = TRUE), .progress = TRUE)
+#   )
+
+prophet_fourier_cv <- structure(list(day = structure(c(1L, 1L, 1L, 1L, 1L, 2L, 2L, 
 2L, 2L, 2L, 3L, 3L, 3L, 3L, 3L, 4L, 4L, 4L, 4L, 4L, 5L, 5L, 5L, 
 5L, 5L, 6L, 6L, 6L, 6L, 6L), .Label = c("1", "2", "5", "10", 
 "20", "50"), class = "factor"), week = structure(c(1L, 2L, 3L, 
@@ -331,13 +369,8 @@ We fit this model to the entire training dataset and analyze the residuals.
 #             ) + growth() + Workday + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons
 #           )
 #         )
-# saveRDS(prophetBasic, "prophetBasic.RDS")
 
 prophetBasic <- readRDS("prophetBasic.RDS")
-# prophetBasic %>%
-#   residuals() %>%
-#   gg_tsdisplay(y = .resid, plot_type = "partial", lag_max = 24*7) +
-#   labs(title = "Residuals from Prophet model with m=50, n=50")
 
 grid.arrange(
 prophetBasic %>%
@@ -399,13 +432,8 @@ this model.
 #               name = "week"
 #             ) + growth() + Workday + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + BikeCountL1 + BikeCountL2 + BikeCountL3 + BikeCountL4 + BikeCountL5 + BikeCountL6 + BikeCountL7 + BikeCountL8 + BikeCountL9 + BikeCountL10 + BikeCountL11 + BikeCountL12 + BikeCountL24
 #           ))
-# saveRDS(prophetAR24, "prophetAR24.RDS")
 
 prophetAR24 <- readRDS("prophetAR24.RDS")
-# prophetAR24 %>%
-#   residuals() %>%
-#   gg_tsdisplay(y = .resid, plot_type = "partial", lag_max = 24*7) +
-#   labs(title = expression(paste("Residuals from Prophet with ", AR(12),",",AR(1)[24],", m=50, n=50")))
 
 grid.arrange(
 prophetAR24 %>%
