@@ -5,6 +5,7 @@ date: "`r Sys.Date()`"
 output:
   pdf_document:
     citation_package: natbib
+    extra_dependencies: ["amsmath", "float"]
 bibliography: citations.bib
 editor_options: 
   chunk_output_type: console
@@ -14,7 +15,9 @@ editor_options:
 knitr::opts_chunk$set(
   echo = FALSE,
   message = FALSE,
-  warning = FALSE
+  warning = FALSE,
+  cache = TRUE,
+  fig.pos = "!H"
   )
 library(magrittr)
 library(dplyr)
@@ -30,7 +33,7 @@ library(tidyr)
 options(scipen = 999)
 ```
 
-## Introduction
+# Introduction
 
 While the concept of renting transportation has been around for decades in
 the form of rental car companies, such as those often found at airports, it
@@ -63,7 +66,7 @@ including studies of the Seoul data specifically. Next, we present the results
 of the exploratory data analysis, including a description of the dataset and
 relevant profiles of the features. In part 
 
-## Literature
+# Literature
 
 The popularity and accessibility of the Seoul bike dataset has resulted in its
 use for numerous studies. A majority of these studies have focused on the
@@ -102,7 +105,7 @@ methods such as long short-term memory and recurrent neural networks, as well
 as modern time series techniques that leverage the underlying structure of the
 data.
 
-## Exploratory Analysis
+# Exploratory Analysis
 
 ```{r read-data}
 bikets <- readr::read_csv("SeoulBikeData.csv",
@@ -156,7 +159,7 @@ The dataset consists of `r scales::comma(nrow(bikets))` hourly observations of
 `r paste(range(bikets$Hour), collapse = " to ")`. There are
 `r sum(is.na(bikets$BikeCount))` observations where *BikeCount*=0 due to the
 bikeshare system not functioning. There are no other periods where
-*BikeCount*=0. \@ref(tab:dictionary) contains information on the variables in
+*BikeCount*=0. Table 1 contains information on the variables in
 the dataset, including the 
 
 ```{r dictionary}
@@ -180,7 +183,7 @@ tibble::tribble(
   knitr::kable(caption = "Variable definitions")
 ```
 
-### Bike Count
+## Bike Count
 
 ```{r timeplot, fig.width=8, fig.cap="Hourly bike demand"}
 # autoplot(bikets, BikeCount) +
@@ -200,7 +203,7 @@ distribution would be most appropriate for the data. If we were to model the
 bike demand on a continuous scale, a log-normal distribution might be
 appropriate.
 
-\@ref(fig:timeplot) highlights the incredible variation in demand over time.
+Figure 1 highlights the incredible variation in demand over time.
 The variance in demand appears to increase during the summer months and then
 decrease again in the autumn. This heteroskedasticity violates the constant
 variance assumption of ordinary least squares regression and will have to be
@@ -224,7 +227,7 @@ evidence in favor of the presence of a unit root and the data is likely
 non-stationary (@kpss). A Ljung-Box test was conducted up to 24 lags which
 resulted in a test statistics of `r round(tstests$lb_stat)` with
 $p=$ `r tstests$lb_pvalue`, indicating strong evidence that there is serial
-correlation in the hourly bike count (@ljung). The acf plot in Figure A shows
+correlation in the hourly bike count (@ljung). The acf plot in Figure 1 shows
 that autocorrelation is significant at most lags out to 168 hours, which
 represents the same hour of the same day in the previous week. The strong
 serial correlation makes this dataset a good candidate for time series
@@ -236,7 +239,7 @@ ggplot(bikets, aes(x = format(Hour, "%H"), y = BikeCount, fill = lubridate::hour
   geom_boxplot() +
   scale_fill_viridis_b() +
   labs(x = "Hour of Day", title = "Hourly Bike Count by Hour", y = "Hourly Bike Demand") +
-  theme(legend.position = "none"),
+  theme(legend.position = "none", axis.text.x = element_text(size = 7)),
 ggplot(bikets, aes(x = lubridate::wday(Hour, label = TRUE), y = BikeCount, fill = lubridate::wday(Hour, label = TRUE))) +
   geom_boxplot() +
   labs(x = "Day of Week", title = "Hourly Bike Count by Day of Week", y = "Hourly Bike Demand") +
@@ -279,7 +282,7 @@ while the peaks are consistently higher for workdays as compared to
 non-workdays. This changing seasonality based on type of day will need to be
 captured in our model.
 
-```{r seasonality-weekends, fig.cap="Hourly demand by day type"}
+```{r seasonality-weekends, fig.cap="Hourly bike demand by type of day, highlighting differing seasonality between workdays and non-workdays"}
 grid.arrange(
 bikets[1000:1672,] %>%
   select(Hour, BikeCount, Workday) %>%
@@ -288,8 +291,9 @@ bikets[1000:1672,] %>%
   tidyr::gather("Day Type", "BikeCount", `Workday`, `Not Workday`) %>%
 ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
   geom_line() +
-  theme(legend.position = "top") +
-  labs(title = "Hourly Demand by Day Type"),
+  theme(legend.position = "top", axis.title.x = element_text(size = 8)) +
+  labs(title = "Hourly Bike Demand by Type of Day",
+       x = "Hour (1/11/2018 to 2/8/2018)"),
 bikets[3000:3672,] %>%
   select(Hour, BikeCount, Workday) %>%
   mutate(`Not Workday` = ifelse(Workday == "Not Workday", BikeCount, NA),
@@ -297,7 +301,8 @@ bikets[3000:3672,] %>%
   tidyr::gather("Day Type", "BikeCount", `Workday`, `Not Workday`) %>%
 ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
   geom_line()+
-  theme(legend.position = "none"),
+  theme(legend.position = "none", axis.title.x = element_text(size = 8)) +
+  labs(x = "Hour (4/4/2018 to 5/2/2018)"),
 bikets[5000:5672,] %>%
   select(Hour, BikeCount, Workday) %>%
   mutate(`Not Workday` = ifelse(Workday == "Not Workday", BikeCount, NA),
@@ -305,7 +310,8 @@ bikets[5000:5672,] %>%
   tidyr::gather("Day Type", "BikeCount", `Workday`, `Not Workday`) %>%
 ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
   geom_line()+
-  theme(legend.position = "none"),
+  theme(legend.position = "none", axis.title.x = element_text(size = 8)) +
+  labs(x = "Hour (6/27/2018 to 7/25/2018)"),
 bikets[6000:6672,] %>%
   select(Hour, BikeCount, Workday) %>%
   mutate(`Not Workday` = ifelse(Workday == "Not Workday", BikeCount, NA),
@@ -313,14 +319,15 @@ bikets[6000:6672,] %>%
   tidyr::gather("Day Type", "BikeCount", `Workday`, `Not Workday`) %>%
 ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
   geom_line()+
-  theme(legend.position = "none"),
+  theme(legend.position = "none", axis.title.x = element_text(size = 8)) +
+  labs(x = "Hour (8/7/2018 to 9/4/2018)"),
 newpage = FALSE)
 ```
 
 Continuing with the impact of seasonality and temperature on demand, we will
 next explore covariates included with the dataset.
 
-### Covariates
+## Covariates
 
 This dataset includes a number of covariates to aid in modeling bike demand.
 All of these covariates are listed in Table 1, along with their definitions.
@@ -329,7 +336,7 @@ social. Weather covariates include variables such as temperature, humidity,
 precipitation, and others. Social variables capture the impact of calendar-based
 human behavior, such as holidays and weekends.
 
-```{r covariate-timeplot, fig.cap="Covariate timeplots"}
+```{r covariate-timeplot, fig.cap="Hourly time plots of covariates"}
 bikets %>%
   select(Hour, where(is.numeric)) %>%
   select(-BikeCount) %>%
@@ -339,11 +346,13 @@ bikets %>%
   ggplot(aes(x = Hour, y = Value, color = Measure)) +
   geom_line() +
   facet_grid(rows = vars(Measure), scales = "free_y") +
+  labs(title = "Hourly time plot of covariates", x = NULL, y = NULL) +
   theme(legend.position = "none",
-        strip.text.y = element_text(size = 6))
+        strip.text.y = element_text(size = 4),
+        axis.text.y = element_text(size = 5))
 ```
 
-Time plots of the covariates (Figure D)
+Time plots of the covariates (Figure 4)
 show a dynamic set of variables. Most of the
 covariates appear to be typical time series data with varying degrees of
 trend, seasonality, cyclicality, autocorrelation, and heteroskedasticity.
@@ -358,7 +367,7 @@ precipitation features, it may prove more performent to convert them to
 binary variables that simply indicate if precipitation occurred during that
 period.
 
-```{r corrplot, fig.width=8, fig.cap="Covariate correlation plot"}
+```{r corrplot, fig.width=8, fig.cap="Correlation plot of covariates"}
 select(bikets, where(is.numeric)) %>%
   as_tibble() %>%
   select(-Hour) %>%

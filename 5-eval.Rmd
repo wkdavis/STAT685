@@ -20,13 +20,13 @@ library(ggplot2)
 options(scipen = 999)
 ```
 
-## Evaluation
+# Evaluation
 
 For the purposes of discussing model error rate, let $y_t$ be the
 observed bike count in period $t$, $\hat{y}_t$ be the forecast bike count in
 period $t$, and $\hat{e}_t=y_t-\hat{y}_t$ be the forecast error at time $t$.
 
-### Model Error Rate
+## Error Rate
 
 Given our stated use for these models is forecasting (prediction), when
 discussing model evaluation we must first define the notion of forecast
@@ -49,7 +49,7 @@ $$
 Where $m=24$ is the number of periods for which bike count is forecast and
 $n=50$ is the number of iterations in the cross-validation.
 
-### Model Selection and Test Error
+## Model Selection
 
 Models will be selected and evaluated in the context of their use for
 forecasting rather than
@@ -71,7 +71,7 @@ the horizon (the number of periods for which we generate a forecast).
 Each of the forecasts
 is then compared with actual (observed) values to evaluate the forecast.
 
-```{r tscv-example, fig.height=3, fig.cap="Time series cross validation"}
+```{r tscv-example, fig.height=3, fig.cap="Depiction of time series cross validation"}
 per <- 1:20
 i1 <- c(rep("T",5), rep("F", 3), rep(" ", 12))
 i2 <- c(rep("T",8), rep("F", 3), rep(" ", 9))
@@ -116,3 +116,8 @@ on YY. The first forecast observation of the first iteration of the second stage
 will be on XX and the final forecast observation of the final (10th) iteration
 of the second stage will be on YY. 
 
+# Results
+
+```{r results}
+
+```
