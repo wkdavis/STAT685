@@ -1,5 +1,5 @@
 ---
-title: "Introduction"
+title: "Seoul Bike Demand Analysis"
 author:
   - William K Davis III
   - Max Kutschinski
@@ -62,6 +62,7 @@ library(tidyr)
 library(GGally)
 library(e1071)
 options(scipen = 999)
+load("BikeFinal.RData")
 ```
 
 \newcommand{\argmin}{\mathop{\mathrm{argmin}}}
@@ -303,7 +304,7 @@ while the peaks are consistently higher for workdays as compared to
 non-workdays. This changing seasonality based on type of day will need to be
 captured in our model.
 
-```{r seasonality-weekends, fig.cap="Hourly bike demand by type of day, highlighting differing seasonality between workdays and non-workdays"}
+```{r seasonality-weekends, fig.cap="Hourly bike demand by type of day, highlighting differing seasonality between workdays and non-workdays", fig.height=3, fig.width=4.5}
 grid.arrange(
 bikets[1000:1672,] %>%
   select(Hour, BikeCount, Workday) %>%
@@ -312,8 +313,15 @@ bikets[1000:1672,] %>%
   tidyr::gather("Day Type", "BikeCount", `Workday`, `Not Workday`) %>%
 ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
   geom_line() +
-  theme(legend.position = "top", axis.title.x = element_text(size = 8)) +
-  labs(title = "Hourly Bike Demand by Type of Day",
+  theme(legend.position = "top",
+        axis.title.x = element_text(size = 7),
+        axis.text.x = element_text(size = 6),
+        axis.title.y = element_text(size = 7),
+        axis.text.y = element_text(size = 6),
+        title = element_text(size = 8),
+        legend.text = element_text(size = 4),
+        legend.title = element_text(size = 5)) +
+  labs(title = "Hourly Demand by Day Type",
        x = "Hour (1/11/2018 to 2/8/2018)"),
 bikets[3000:3672,] %>%
   select(Hour, BikeCount, Workday) %>%
@@ -322,7 +330,11 @@ bikets[3000:3672,] %>%
   tidyr::gather("Day Type", "BikeCount", `Workday`, `Not Workday`) %>%
 ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
   geom_line()+
-  theme(legend.position = "none", axis.title.x = element_text(size = 8)) +
+  theme(legend.position = "none", 
+        axis.title.x = element_text(size = 7),
+        axis.text.x = element_text(size = 6),
+        axis.title.y = element_text(size = 7),
+        axis.text.y = element_text(size = 6)) +
   labs(x = "Hour (4/4/2018 to 5/2/2018)"),
 bikets[5000:5672,] %>%
   select(Hour, BikeCount, Workday) %>%
@@ -331,7 +343,11 @@ bikets[5000:5672,] %>%
   tidyr::gather("Day Type", "BikeCount", `Workday`, `Not Workday`) %>%
 ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
   geom_line()+
-  theme(legend.position = "none", axis.title.x = element_text(size = 8)) +
+  theme(legend.position = "none", 
+        axis.title.x = element_text(size = 7),
+        axis.text.x = element_text(size = 6),
+        axis.title.y = element_text(size = 7),
+        axis.text.y = element_text(size = 6)) +
   labs(x = "Hour (6/27/2018 to 7/25/2018)"),
 bikets[6000:6672,] %>%
   select(Hour, BikeCount, Workday) %>%
@@ -340,7 +356,11 @@ bikets[6000:6672,] %>%
   tidyr::gather("Day Type", "BikeCount", `Workday`, `Not Workday`) %>%
 ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
   geom_line()+
-  theme(legend.position = "none", axis.title.x = element_text(size = 8)) +
+  theme(legend.position = "none", 
+        axis.title.x = element_text(size = 7),
+        axis.text.x = element_text(size = 6),
+        axis.title.y = element_text(size = 7),
+        axis.text.y = element_text(size = 6)) +
   labs(x = "Hour (8/7/2018 to 9/4/2018)"),
 newpage = FALSE)
 ```
@@ -388,21 +408,38 @@ precipitation features, it may prove more performent to convert them to
 binary variables that simply indicate if precipitation occurred during that
 period.
 
-```{r corrplot, fig.width=8, fig.cap="Correlation plot of covariates"}
-select(bikets, where(is.numeric)) %>%
+```{r corrplot, fig.width=6, fig.cap="Scatterplots and smoothed GAM fits of Bike Count vs. each covariate", dev = "CairoPDF"}
+plotdf <- select(bikets, where(is.numeric)) %>%
   as_tibble() %>%
+  pivot_longer(-c(Hour, BikeCount), names_to = "Covariate", values_to = "Value") %>%
   select(-Hour) %>%
-  ggpairs() +
-  theme(axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        text = element_text(size = 8))
+  group_by(Covariate) %>%
+  mutate(p = cor(Value, BikeCount, use = "complete.obs"))
+
+cordf <- plotdf %>%
+  group_by(Covariate) %>%
+  summarise(p = mean(p), mx = max(Value))
+
+plotdf %>%
+  ggplot(aes(x = Value, y = BikeCount)) +
+  geom_point() +
+  geom_label(data = cordf, mapping = aes(x = mx*.8, y = 3500, label = paste("\u03c1","=", round(p,3))), size = 3) +
+  facet_wrap(vars(Covariate), nrow = 3, ncol = 3, scales = "free_x") +
+  scale_y_continuous(limits = c(0, NA)) +
+  scale_x_continuous(name = "Covariate Value") +
+  geom_smooth()
+  # ggpairs() +
+  # theme(axis.text = element_blank(),
+  #       axis.ticks = element_blank(),
+  #       text = element_text(size = 8))
 ```
 
 
 
-The correlation plot highlights a number of important relationships in the data.
+Figure 5 highlights a number of important relationships in the data.
 Bike count appears moderately linearly correlated with both temperature
-($\rho=0.563$) and dewpoint ($\rho=0.400$). However, this is significant
+($\rho=0.563$) and dewpoint ($\rho=0.400$), though a higher-order interaction
+might better represent this relationship. However, there is significant
 multicollinearity between temperature and dewpoint ($\rho=0.913$), so
 additional analysis will be required to isolate the effect of each variable.
 Finally, we can see that a number of the covariates, such as wind speed,
@@ -563,7 +600,6 @@ by the fourier terms).
 ```{r arima-fourier, fig.height=4, fig.cap="Residuals for an ARIMAX(2,1,2) model with daily & weekly fourier terms"}
 # model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 # ARIMAfourier <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(2,1,2) + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
-ARIMAfourier <- readRDS("ARIMAfourier.RDS")
 ARIMAfourier %>%
   residuals() %>%
   gg_tsdisplay(.resid, plot_type = "partial", lag_max = 24*7) +
@@ -584,10 +620,9 @@ $p,d,q,P,D,Q$ are chosen automatically using `fable::ARIMA`, which relies on
 the algorithm developed by (@autoarima). This resulted in the selection of an
 $SARIMA(1,0,1)\times(5,1,0)_{24}$ for $x_t$.
 
-```{r auto-sarima, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$"}
+```{r auto-sarima, fig.height = 4, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$"}
 # model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ() + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 # ARIMAauto <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(1,0,1) + PDQ(5,1,0) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
-ARIMAauto <- readRDS("ARIMAauto.RDS")
 ARIMAauto %>%
   residuals() %>%
   gg_tsdisplay(.resid, plot_type = "partial", lag_max = 24*7)+
@@ -726,7 +761,6 @@ We fit this model to the entire training dataset and analyze the residuals.
 #           )
 #         )
 
-prophetBasic <- readRDS("prophetBasic.RDS")
 
 grid.arrange(
 prophetBasic %>%
@@ -980,10 +1014,12 @@ $$
 
 ```{r python setup, include=FALSE}
 library(reticulate)
-use_python("/Users/wkdavis/opt/anaconda3/bin/python3") #Select the version of Python to be used by reticulate.
+use_python("/Users/wkdavis/opt/anaconda3/bin/python3") #Select the version of Python to be used by reticulate. 
 ```
 
-```{python series-to-supervised-fn}
+```{python series-to-supervised-fn, cache = FALSE}
+import random
+random.seed(10)
 # convert series to supervised learning
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
     n_vars = 1 if type(data) is list else data.shape[1]
@@ -1031,10 +1067,9 @@ Root Mean Square Error (RMSE), and the learning curve. A good fit is identified
 by a training and validation loss that decreases to a point of stability with a
 minimal gap between the two final loss values.
 
-```{python import-packages, include = FALSE}
+```{python import-packages, include = FALSE, cache = FALSE}
 # Let's import all packages that we may need:
-
-import sys 
+import sys
 import numpy as np # linear algebra
 from numpy import concatenate
 from scipy.stats import randint
@@ -1108,24 +1143,24 @@ bike <- read_csv("SeoulBikeData.csv",
 write.csv(bike, 'SeoulBikeData2.csv', row.names = FALSE)
 ```
 
-```{python python-load-data, include = FALSE, eval = FALSE}
-# load data
-bike = r.bike
-# manually specify column names
-bike.columns = ["BikeCount",
-                "Temperature", "Humidity",
-                "WindSpeed", "Visibility",
-                "Dewpoint", "SolarRadiation",
-                "Rainfall", "Snowfall",
-                "Seasons", "Holiday", "FunctionalDay"]
-bike.index.name = "Datetime"
-# bike = bike.drop('FunctionalDay', 1) #maybe we can drop FunctionalDay
-# print(bike.head())
-# save to file
-bike.to_csv('SeoulBikeData2.csv')
+```{python python-load-data, include = FALSE, eval = FALSE, cache = FALSE}
+# # load data
+# bike = r.bike
+# # manually specify column names
+# bike.columns = ["BikeCount",
+#                 "Temperature", "Humidity",
+#                 "WindSpeed", "Visibility",
+#                 "Dewpoint", "SolarRadiation",
+#                 "Rainfall", "Snowfall",
+#                 "Seasons", "Holiday", "FunctionalDay"]
+# bike.index.name = "Datetime"
+# # bike = bike.drop('FunctionalDay', 1) #maybe we can drop FunctionalDay
+# # print(bike.head()) 
+# # save to file
+# bike.to_csv('SeoulBikeData2.csv')
 ```
 
-```{python python-data-prep, include = FALSE}
+```{python python-data-prep, include = FALSE, cache = FALSE}
 # prepare data for lstm
 from pandas import read_csv
 from pandas import DataFrame
@@ -1147,9 +1182,9 @@ values = dataset.values
 
 ##### Lag 1 Hour Model
 
-```{python lag1-data-prep, include = FALSE}
+```{python lag1-data-prep, include = FALSE, cache = FALSE}
 # convert categorical features to numeric encoding
-# integer encode direction
+# integer encode direction 
 encoder = LabelEncoder()
 values[:,9] = encoder.fit_transform(values[:,9])
 values[:,10] = encoder.fit_transform(values[:,10])
@@ -1165,7 +1200,6 @@ reframed = series_to_supervised(scaled, 1, 1)
 reframed.drop(reframed.columns[[13,14,15,16,17,18,19,20,21,22,23]], axis=1, inplace=True)
 # print(reframed.head())
 # print(reframed.shape)
-
 # split into train and test sets
 values = reframed.values
 N = len(dataset.index)
@@ -1195,8 +1229,8 @@ version of stochastic gradient descent.
 6) The model will be fit for 80 training epochs with a batch size of 12.
 
 
-```{python lag1-model, include = FALSE}
-# design network
+```{python lag1-model, include = FALSE, cache = FALSE}
+# design network 
 model = Sequential()
 model.add(LSTM(50, activation = 'relu',input_shape=(train_X.shape[1], train_X.shape[2])))
 model.add(Dropout(0.5))
@@ -1208,23 +1242,23 @@ model.compile(loss='mae', optimizer='adam')
 history = model.fit(train_X, train_y, epochs=80, batch_size=12, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 ```
 
-```{python lag1-loss, fig.cap='Model loss - 1 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5}
-# summarize history for loss
-pyplot.plot(history.history['loss'], label='train')
-pyplot.plot(history.history['val_loss'], label='test')
-pyplot.title('Lag1 model loss')
-pyplot.ylabel('MAE', size = 8)
-pyplot.xlabel('Number of Epochs', size = 8)
-pyplot.legend(fontsize = 6)
-pyplot.show()
+```{python lag1-loss, fig.cap='Model loss - 1 hour lagged time steps as input', echo = FALSE, fig.height = 2, fig.width = 3, cache = FALSE}
+# summarize history for loss  
+# pyplot.plot(history.history['loss'], label='train')
+# pyplot.plot(history.history['val_loss'], label='test')
+# pyplot.title('Lag1 model loss')
+# pyplot.ylabel('MAE', size = 8)
+# pyplot.xlabel('Number of Epochs', size = 8)
+# pyplot.legend(fontsize = 6)
+# pyplot.show()
 ```
 
-Although in Figure 12 we can see both errors converge fairly fast, the proposed
+Although in Figure 11 we can see both errors converge fairly fast, the proposed
 network is not a good fit since there is a gap between the training error and
 test error.
 
-```{python lag1-error, echo = FALSE}
-# make a prediction
+```{python lag1-error, echo = FALSE, cache = FALSE}
+# make a prediction  
 yhat = model.predict(test_X)
 test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
 # invert scaling for forecast
@@ -1247,24 +1281,56 @@ maeL1 = mae(inv_y, inv_yhat)
 # print('Test mean absolute error : %.3f' % maeL1)
 ```
 
-```{python lag1-forecast, fig.cap='Forcasted Bike Rental Demand of one day - 1 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5}
-## time steps, every step is one hour (you can easily convert the time step to the actual time index)
-## for a demonstration purpose, I only compare the predictions in 24*7 hours. 
-## Generate Dates for index
-aa=[x for x in range(24)]
-pyplot.plot(aa, inv_y[:24], marker='.', label="actual")
-pyplot.plot(aa, inv_yhat[:24], 'r', label="prediction")
-pyplot.ylabel('Bike Rental Demand', size=8)
-pyplot.xlabel('Hours', size=8)
-pyplot.title('Lag1 Model Forecast')
-pyplot.legend(fontsize=6)
-pyplot.show()
+```{python lag1-forecast, fig.cap='LSTM Lag 1 Model Loss and Forcasted Bike Rental Demand of one day', echo = FALSE, fig.height = 2, fig.width = 6, cache = FALSE}
+def lstmplot(history, inv_y, inv_yhat, model):
+    fig, (ax1, ax2) = pyplot.subplots(nrows=1, ncols=2, figsize=(6,2.25))
+    ax1.plot(history.history['loss'], label='train')
+    ax1.plot(history.history['val_loss'], label='test')
+    losstitle = model + ' model loss'
+    ax1.set_title(losstitle)
+    ax1.set_ylabel('MAE', size = 8)
+    ax1.set_xlabel('Number of Epochs', size = 8)
+    ax1.legend(fontsize = 6)
+    aa=[x for x in range(24)]
+    ax2.plot(aa, inv_y[:24], marker='.', label="actual")
+    ax2.plot(aa, inv_yhat[:24], 'r', label="prediction")
+    ax2.set_ylabel('Bike Rental Demand', size=8)
+    ax2.set_xlabel('Hours', size=8)
+    fctitle = model + ' Model Forecast'
+    ax2.set_title(fctitle)
+    ax2.legend(fontsize=6)
+    pyplot.tight_layout()
+    pyplot.show()
+
+lstmplot(history, inv_y, inv_yhat, 'Lag 1')
+# # summarize history for loss 
+# pyplot.subplot(1,2,1)
+# pyplot.plot(history.history['loss'], label='train')
+# pyplot.plot(history.history['val_loss'], label='test')
+# pyplot.title('Lag1 model loss')
+# pyplot.ylabel('MAE', size = 8)
+# pyplot.xlabel('Number of Epochs', size = 8)
+# pyplot.legend(fontsize = 6)
+# # pyplot.show()
+# 
+# ## time steps, every step is one hour (you can easily convert the time step to the actual time index)
+# ## for a demonstration purpose, I only compare the predictions in 24*7 hours. 
+# ## Generate Dates for index 
+# pyplot.subplot(1,2,2)
+# aa=[x for x in range(24)]
+# pyplot.plot(aa, inv_y[:24], marker='.', label="actual")
+# pyplot.plot(aa, inv_yhat[:24], 'r', label="prediction")
+# pyplot.ylabel('Bike Rental Demand', size=8)
+# pyplot.xlabel('Hours', size=8)
+# pyplot.title('Lag1 Model Forecast')
+# pyplot.legend(fontsize=6)
+# pyplot.show()
 ```
 
 ##### Lag 12 Hours Model
 
-```{python lag12-data-prep, include = FALSE}
-# specify the number of lag hours
+```{python lag12-data-prep, include = FALSE, cache = FALSE}
+# specify the number of lag hours  
 n_hours = 12 # use 12 hours of data as input
 n_features = 12
 
@@ -1317,8 +1383,8 @@ test_X = test_X.reshape((test_X.shape[0], n_hours, n_features))
 5) I use the Mean Absolute Error (MAE) loss function and the efficient Adam version of stochastic gradient descent.
 6) The model will be fit for 60 training epochs with a batch size of 12.
 
-```{python lag12-model, include = FALSE}
-# design network
+```{python lag12-model, include = FALSE, cache = FALSE}
+# design network 
 model = Sequential()
 model.add(LSTM(50, activation = 'relu', input_shape=(train_X.shape[1], train_X.shape[2])))
 model.add(Dropout(0.5))
@@ -1328,23 +1394,23 @@ model.compile(loss='mae', optimizer='adam')
 history = model.fit(train_X, train_y, epochs=60, batch_size=12, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 ```
 
-```{python lag12-loss, fig.cap='Model loss - 12 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5}
-# plot history
-pyplot.plot(history.history['loss'], label='train')
-pyplot.plot(history.history['val_loss'], label='test')
-pyplot.title('Lag12 model loss')
-pyplot.ylabel('MAE', size = 8)
-pyplot.xlabel('Number of Epochs', size = 8)
-pyplot.legend(fontsize = 6)
-pyplot.show()
+```{python lag12-loss, fig.cap='Model loss - 12 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5, cache = FALSE}
+# plot history 
+# pyplot.plot(history.history['loss'], label='train')
+# pyplot.plot(history.history['val_loss'], label='test')
+# pyplot.title('Lag12 model loss')
+# pyplot.ylabel('MAE', size = 8)
+# pyplot.xlabel('Number of Epochs', size = 8)
+# pyplot.legend(fontsize = 6)
+# pyplot.show()
 ```
 
-The Loss vs Epoch curve is shown in Figure 13 in which the progress of mode
+The Loss vs Epoch curve is shown in Figure 12 in which the progress of mode
 while training is represented. Both training and testing loss decreases in a
 smooth fashion fairly quickly.  
 
-```{python lag12-error, echo = FALSE}
-# make a prediction
+```{python lag12-error, echo = FALSE, cache = FALSE}
+# make a prediction  
 yhat = model.predict(test_X)
 test_X = test_X.reshape((test_X.shape[0], n_hours*n_features))
 # invert scaling for forecast
@@ -1366,24 +1432,34 @@ maeL12 = mae(inv_y, inv_yhat)
 # print('Test mean absolute error : %.3f' % maeL12)
 ```
 
-```{python lag12-forecast, fig.cap='Forcasted Bike Rental Demand of one day - 12 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5}
-## time steps, every step is one hour (you can easily convert the time step to the actual time index)
-## for a demonstration purpose, I only compare the predictions in 24 hours. 
-
-aa=[x for x in range(24)]
-pyplot.plot(aa, inv_y[:24], marker='.', label="actual")
-pyplot.plot(aa, inv_yhat[:24], 'r', label="prediction")
-pyplot.ylabel('Bike Demand', size=8)
-pyplot.xlabel('Hours', size=8)
-pyplot.title('Lag12 Model Forecast')
-pyplot.legend(fontsize=6)
-pyplot.show()
+```{python lag12-forecast, fig.cap='LSTM Lag 12 Model Loss and Forcasted Bike Rental Demand of one day', echo = FALSE, fig.height = 2, fig.width = 6, cache = FALSE}
+# # plot history 
+# pyplot.subplot(1,2,1)
+# pyplot.plot(history.history['loss'], label='train')
+# pyplot.plot(history.history['val_loss'], label='test')
+# pyplot.title('Lag12 model loss')
+# pyplot.ylabel('MAE', size = 8)
+# pyplot.xlabel('Number of Epochs', size = 8)
+# pyplot.legend(fontsize = 6)
+# 
+# ## time steps, every step is one hour (you can easily convert the time step to the actual time index)
+# ## for a demonstration purpose, I only compare the predictions in 24 hours.  
+# pyplot.subplot(1,2,2)
+# aa=[x for x in range(24)]
+# pyplot.plot(aa, inv_y[:24], marker='.', label="actual")
+# pyplot.plot(aa, inv_yhat[:24], 'r', label="prediction")
+# pyplot.ylabel('Bike Demand', size=8)
+# pyplot.xlabel('Hours', size=8)
+# pyplot.title('Lag12 Model Forecast')
+# pyplot.legend(fontsize=6)
+# pyplot.show()
+lstmplot(history, inv_y, inv_yhat, 'Lag 12')
 ```
 
 ##### Lag 24 Hours Model
 
-```{python lag24-data-prep, echo = FALSE}
-# specify the number of lag hours
+```{python lag24-data-prep, echo = FALSE, cache = FALSE}
+# specify the number of lag hours  
 n_hours = 24 # use 24 hours of data as input
 n_features = 12
 
@@ -1436,8 +1512,8 @@ test_X = test_X.reshape((test_X.shape[0], n_hours, n_features))
 5) I use the Mean Absolute Error (MAE) loss function and the efficient Adam version of stochastic gradient descent.
 6) The model will be fit for 60 training epochs with a batch size of 12.
 
-```{python lag24-model, include = FALSE}
-# design network
+```{python lag24-model, include = FALSE, cache = FALSE}
+# design network 
 model = Sequential()
 model.add(LSTM(50, activation = 'relu',input_shape=(train_X.shape[1], train_X.shape[2])))
 model.add(Dropout(0.5))
@@ -1447,19 +1523,19 @@ model.compile(loss='mae', optimizer='adam')
 history = model.fit(train_X, train_y, epochs=60, batch_size=12, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 ```
 
-```{python lag24-loss, fig.cap='Model loss - 24 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5}
-# plot history
-pyplot.plot(history.history['loss'], label='train')
-pyplot.plot(history.history['val_loss'], label='test')
-pyplot.title('Lag24 model loss')
-pyplot.ylabel('MAE', size = 8)
-pyplot.xlabel('Number of Epochs', size = 8)
-pyplot.legend(fontsize = 6)
-pyplot.show()
+```{python lag24-loss, fig.cap='Model loss - 24 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5, cache = FALSE}
+# # plot history 
+# pyplot.plot(history.history['loss'], label='train')
+# pyplot.plot(history.history['val_loss'], label='test')
+# pyplot.title('Lag24 model loss')
+# pyplot.ylabel('MAE', size = 8)
+# pyplot.xlabel('Number of Epochs', size = 8)
+# pyplot.legend(fontsize = 6)
+# pyplot.show()
 ```
 
-```{python lag24-error, echo = FALSE}
-# make a prediction
+```{python lag24-error, echo = FALSE, cache = FALSE}
+# make a prediction 
 yhat = model.predict(test_X)
 test_X = test_X.reshape((test_X.shape[0], n_hours*n_features))
 # invert scaling for forecast
@@ -1478,21 +1554,33 @@ rmseL24 = np.sqrt(mean_squared_error(inv_y, inv_yhat))
 # import the module
 from sklearn.metrics import mean_absolute_error as mae
 maeL24 = mae(inv_y, inv_yhat)
+lstmacc = pd.DataFrame([['LSTM Lag 1', maeL1, rmseL1], ['LSTM Lag 12', maeL12, rmseL12], ['LSTM Lag 24', maeL24, rmseL24]], columns = ['.model', 'MAE', 'RMSE'])
+lstmacc.to_csv('lstmacc.csv')
 # print('Test mean absolute error : %.3f' % maeL24)
 ```
 
-```{python lag24-forecast, fig.cap='Forcasted Bike Rental Demand of one day - 24 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5}
-## time steps, every step is one hour (you can easily convert the time step to the actual time index)
-## for a demonstration purpose, I only compare the predictions in 24 hours. 
-
-aa=[x for x in range(24)]
-pyplot.plot(aa, inv_y[:24], marker='.', label="actual")
-pyplot.plot(aa, inv_yhat[:24], 'r', label="prediction")
-pyplot.ylabel('Bike Demand Rental', size=8)
-pyplot.xlabel('Hours', size=8)
-pyplot.title('Lag24 Model Forecast')
-pyplot.legend(fontsize=6)
-pyplot.show()
+```{python lag24-forecast, fig.cap='LSTM Lag 24 Model Loss and Forcasted Bike Rental Demand of one day', echo = FALSE, fig.height = 2, fig.width = 6, cache = FALSE}
+# # plot history 
+# pyplot.subplot(1,2,1)
+# pyplot.plot(history.history['loss'], label='train')
+# pyplot.plot(history.history['val_loss'], label='test')
+# pyplot.title('Lag24 model loss')
+# pyplot.ylabel('MAE', size = 8)
+# pyplot.xlabel('Number of Epochs', size = 8)
+# pyplot.legend(fontsize = 6)
+# 
+# ## time steps, every step is one hour (you can easily convert the time step to the actual time index)
+# ## for a demonstration purpose, I only compare the predictions in 24 hours. 
+# pyplot.subplot(1,2,2)
+# aa=[x for x in range(24)]
+# pyplot.plot(aa, inv_y[:24], marker='.', label="actual")
+# pyplot.plot(aa, inv_yhat[:24], 'r', label="prediction")
+# pyplot.ylabel('Bike Demand Rental', size=8)
+# pyplot.xlabel('Hours', size=8)
+# pyplot.title('Lag24 Model Forecast')
+# pyplot.legend(fontsize=6)
+# pyplot.show()
+lstmplot(history, inv_y, inv_yhat, 'Lag 24')
 ```
 
 # Evaluation
@@ -1555,7 +1643,7 @@ the horizon (the number of periods for which we generate a forecast).
 Each of the forecasts
 is then compared with actual (observed) values to evaluate the forecast.
 
-```{r tscv-example, fig.height=3, fig.cap="Visualization of time series cross-validation example"}
+```{r tscv-example, fig.height=2, fig.cap="Visualization of time series cross-validation example"}
 per <- 1:20
 i1 <- c(rep("T",5), rep("F", 3), rep(" ", 12))
 i2 <- c(rep("T",8), rep("F", 3), rep(" ", 9))
@@ -1570,7 +1658,7 @@ df = tibble::tibble(iteration = sort(rep(1:5, length(per))),
 ggplot(df, aes(x = period, y = -iteration, label = type, color = type)) +
   geom_segment(aes(xend = 22, yend = -iteration), 
                color = "black", 
-               arrow = grid::arrow(type = "closed")) +
+               arrow = grid::arrow(angle = 30, length = unit(0.1, "inches"), type = "closed")) +
   geom_point(size = 5) +
   geom_text(color = "black") +
   labs(x = "Period (t)") +
@@ -1674,8 +1762,7 @@ paradigm this is known as a Seasonal NAIVE (SNAIVE) model.
   \hat{x}_t=x_{t-24}
 \end{equation}
 
-```{r results}
-
+```{r accuracy, cache = FALSE}
 combined_acc <- bikets_test_stretched %>%
   model(Baseline = SNAIVE(BikeCount)) %>%
   forecast(new_data = fcst_new_data) %>%
@@ -1683,9 +1770,17 @@ combined_acc <- bikets_test_stretched %>%
   select(-.type)
 
 ## Time Series
-tsmodels_cv <- readRDS("tsmodels_cv.RDS")
-tsmodels_acc <- forecast(tsmodels_cv, new_data = fcst_new_data) %>%
-  mutate(.pred = inv_box_cox(.mean, l)) %>%
+# tsmodels_fc <- bikets_test_stretched %>%
+#   model(
+#     ARIMAfourierAuto =ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 5) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday),
+#     # ARIMAfourier212 =ARIMA(box_cox(BikeCount, l) ~ 0 + pdq(2,1,2) + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 5) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday),
+#     # ARIMAauto101510 = ARIMA(box_cox(BikeCount, l) ~ 0 + pdq(1,0,1) + PDQ(5,1,0) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday),
+#     ARIMAauto = ARIMA(box_cox(BikeCount, l) ~ pdq(p=0:12, q=0:12) + PDQ(P=0:12,Q=0:12) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday),
+#     prophetBasic = prophetBasic$prophet[[1]]$model
+#   ) %>% 
+#   forecast(new_data = fcst_new_data) %>%
+#   mutate(.pred = inv_box_cox(.mean, l))
+tsmodels_acc <- tsmodels_fc %>%
   as_tibble() %>%
   group_by(.model) %>%
   summarise(MAE = MAE(pred = .pred, obs = BikeCount, na.rm = TRUE),
@@ -1693,6 +1788,7 @@ tsmodels_acc <- forecast(tsmodels_cv, new_data = fcst_new_data) %>%
   drop_na() %>%
   mutate(.model = case_when(
     .model == "ARIMAfourier212" ~ "ARIMAX(2,1,2) w/ Fourier",
+    .model == "ARIMAfourierAuto" ~ "auto ARIMAX w/ Fourier",
     .model == "ARIMAauto101510" ~ "SARIMAX(1,0,1)(5,1,0)",
     .model == "ARIMAfourier212" ~ "auto ARIMAX w/ Fourier",
     .model == "ARIMAauto" ~ "auto SARIMAX",
@@ -1718,7 +1814,6 @@ tsmodels_acc <- forecast(tsmodels_cv, new_data = fcst_new_data) %>%
 #                  tuneGrid = rfOut$bestTune,
 #                  trControl = myTestControl)
 # 
-rfTestOut <- readRDS("rfTestOut.RDS")
 # 
 # boostTestOut = train(XFull, bike$BikeCount,
 #                  metric = "MAE",
@@ -1726,20 +1821,65 @@ rfTestOut <- readRDS("rfTestOut.RDS")
 #                  tuneGrid = boostOut$bestTune,
 #                  trControl = myTestControl)
 # 
-boostTestOut <- readRDS("boostTestOut.RDS")
 
-combined_acc %>%
+combined_acc <- combined_acc %>%
   bind_rows(tsmodels_acc) %>%
   bind_rows(mutate(rfTestOut$results[,c("RMSE", "MAE")], .model = "Random Forest")) %>%
   bind_rows(mutate(boostTestOut$results[,c("RMSE", "MAE")], .model = "XGBoost")) %>%
-  bind_rows(tibble::tibble(.model = c("LSTM lag 1", "LSTM lag 12", "LSTM lag 24"),
-               MAE = c(py$maeL1, py$maeL12, py$maeL24),
-               RMSE = c(py$rmseL1, py$rmseL12, py$rmseL24))) %>%
-  rename(Model = .model) %>%
+  bind_rows(select(readr::read_csv("lstmacc.csv"), .model, MAE, RMSE)) %>%
+  rename(Model = .model)
+```
+
+```{r accuracy-viz, fig.cap="Mean Absolute Error by Model", fig.height=3, fig.width=4, cache = FALSE}
+combined_acc %>%
   knitr::kable(caption = "Test Error by Model Type", digits = 0) %>%
   kableExtra::pack_rows("Baseline",1,1) %>%
   kableExtra::pack_rows("Time Series Methods", 2, nrow(tsmodels_acc)+1) %>%
   kableExtra::pack_rows("Tree Methods", nrow(tsmodels_acc)+2, nrow(tsmodels_acc)+3) %>%
   kableExtra::pack_rows("LSTM Models", nrow(tsmodels_acc)+4, nrow(tsmodels_acc)+6)
+
+bl_acc <- combined_acc$MAE[combined_acc$Model=="Baseline"]
+
+combined_acc <- mutate(combined_acc, accrank = min_rank(MAE))
+best_acc <- filter(combined_acc, accrank==1)
+best_mae <- best_acc$MAE
+best_model <- best_acc$Model
+
+model2 <- combined_acc$Model[combined_acc$accrank==2]
+model3 <- combined_acc$Model[combined_acc$accrank==3]
+
+combined_acc %>%
+  mutate(Model = gsub(" ", "\n", Model, fixed = TRUE),
+         blag = case_when(Model == "Baseline" ~ "baseline",
+                          MAE == min(MAE) ~ "best",
+                          TRUE ~ "other")) %>%
+  ggplot(aes(x = forcats::fct_reorder(Model, MAE), y = MAE, label = round(MAE), fill = blag)) +
+  geom_col() +
+  scale_fill_manual(values = c("baseline" = "grey", "best" = "darkgreen", "other" = "grey60")) +
+  geom_text(vjust = -1, size = 3) +
+  labs(title = "MAE by Model", x = NULL) +
+  geom_hline(yintercept = min(combined_acc$MAE), color = "darkgreen") +
+  geom_hline(yintercept = bl_acc, linetype = 2, color = "black")+
+  theme_classic() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = 6)) +
+  scale_y_continuous(expand = c(0,0,.15,0))
+  
 ```
 
+Table 3 and Figure 15 report the MAE and RMSE for each model. Perhaps
+unsurprisingly, the machine learning methods performed better than the
+time series methods, on average. The `r best_model` model
+performed the best (smallest MAE), with $MAE=$
+`r round(best_mae)` bikes demanded per hour. This was followed by
+`r model2` and `r model3`. Somewhat surprisingly, the Prophet time series model
+had the fourth-smallest MAE, outperforming the Random Forest (3 units). The 
+baseline SNAIVE model outperformed both
+ARIMA-based models, which further reinforces the difficulty that ARIMA methods
+have with such high-frequency data.
+
+# Conclusion
+
+
+
+\newpage
