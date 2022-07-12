@@ -1,2 +1,12 @@
 *_cache
 BikeProject.html
+archive
+BikeFinal_files
+BikeFinal_cache
+fasster.R
+SeoulBikeData2\.csv
+lstmacc\.csv
+BikeFinal.*
+!BikeFinal.RData
+!BikeFinal.Rmd
+!BikeFinal.pdf

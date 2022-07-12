@@ -8,7 +8,9 @@ date: "`r Sys.Date()`"
 output:
   pdf_document:
     citation_package: natbib
-    extra_dependencies: ["amsmath", "float"]
+    extra_dependencies: ["amsmath", "float", "booktabs"]
+    keep_tex: true
+    fig_caption: yes
 bibliography: citations.bib
 editor_options: 
   chunk_output_type: console
@@ -16,12 +18,17 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE,
+  collapse = TRUE,
   message = FALSE,
   warning = FALSE,
-  cache = TRUE,
-  fig.pos = "!H"
-  )
+  comment = "#>",
+  fig.width = 5,
+  fig.height = 3,
+  echo = FALSE,
+  kable.force.latex = TRUE,
+  fig.pos = "H",
+  fig.align = "center"
+)
 library(magrittr)
 library(dplyr)
 library(tsibble)
@@ -193,7 +200,7 @@ The dataset consists of `r scales::comma(nrow(bikets))` hourly observations of
 `r paste(range(bikets$Hour), collapse = " to ")`. There are
 `r sum(is.na(bikets$BikeCount))` observations where *BikeCount*=0 due to the
 bikeshare system not functioning. There are no other periods where
-*BikeCount*=0. Table 1 contains information on the variables in
+*BikeCount*=0. Table \ref{tab:var-defs} contains information on the variables in
 the dataset, including the 
 
 ```{r dictionary}
@@ -214,12 +221,13 @@ tibble::tribble(
   "Functional Day", "FunctionalDay", "categorical", "NoFunc(Non Functional Hours), Fun(Functional hours)",
   "Workday", "Workday", "categorical", "Workday/Not Workday. A workday is a weekday that is not a holiday."
 ) %>%
-  knitr::kable(caption = "Variable definitions")
+  knitr::kable(caption = "Variable definitions",
+               label = "var-defs")
 ```
 
 ## Bike Count
 
-```{r timeplot, fig.width=8, fig.cap="Hourly bike demand"}
+```{r timeplot, fig.width=8, fig.cap="Hourly bike demand", fig.scap="\\label{fig:timeplot}"}
 gg_tsdisplay(bikets, BikeCount, plot_type = "histogram", lag_max = 24*7) +
   labs(title = "Hourly Bike Demand")
 ```
@@ -231,7 +239,7 @@ distribution would be most appropriate for the data. If we were to model the
 bike demand on a continuous scale, a log-normal distribution might be
 appropriate.
 
-Figure 1 highlights the incredible variation in demand over time.
+Figure \ref{fig:timeplot} highlights the incredible variation in demand over time.
 The variance in demand appears to increase during the summer months and then
 decrease again in the autumn. This heteroskedasticity violates the constant
 variance assumption of ordinary least squares regression and will have to be
@@ -255,7 +263,7 @@ represents the same hour of the same day in the previous week. The strong
 serial correlation makes this dataset a good candidate for time series
 techniques.
 
-```{r season-plots, fig.width = 8, fig.cap="Hourly bike demand by time period"}
+```{r season-plots, fig.width = 8, fig.cap="Hourly bike demand by time period", fig.scap="\\label{fig:season-plots}"}
 grid.arrange(
 ggplot(bikets, aes(x = format(Hour, "%H"), y = BikeCount, fill = lubridate::hour(Hour))) +
   geom_boxplot() +
@@ -280,7 +288,7 @@ newpage = FALSE
 )
 ```
 
-Figure 2 highlights various seasonal and temporal patterns in the data. There
+Figure \ref{fig:season-plots} highlights various seasonal and temporal patterns in the data. There
 is certainly an effect based on the hour of day, with demand increasing
 sharply in the morning, presumably during the morning commute, before decreasing
 into the lunchtime hour. From there, demand rises steadily through the evening
@@ -294,7 +302,7 @@ of large positive outliers during the weekdays. Finally, demand appears
 largest during the summer months and smallest during the winter, as biking would
 be a less desirable option in the cold.
 
-Figure 3 provides insight into the seasonality of the bike demand. Each panel
+Figure \ref{fig:season-weekend} provides insight into the seasonality of the bike demand. Each panel
 is a 4-week sample of hourly bike demand, with non-workdays (weekends and
 holidays) highlighted in red. While these days appear to follow a consistent
 hourly pattern much like the workdays, we can see that their is a difference
@@ -304,7 +312,7 @@ while the peaks are consistently higher for workdays as compared to
 non-workdays. This changing seasonality based on type of day will need to be
 captured in our model.
 
-```{r seasonality-weekends, fig.cap="Hourly bike demand by type of day, highlighting differing seasonality between workdays and non-workdays", fig.height=3, fig.width=4.5}
+```{r seasonality-weekends, fig.cap="Hourly bike demand by type of day, highlighting differing seasonality between workdays and non-workdays", fig.height=3, fig.width=4.5, fig.scap="\\label{fig:season-weekend}"}
 grid.arrange(
 bikets[1000:1672,] %>%
   select(Hour, BikeCount, Workday) %>%
@@ -377,7 +385,7 @@ social. Weather covariates include variables such as temperature, humidity,
 precipitation, and others. Social variables capture the impact of calendar-based
 human behavior, such as holidays and weekends.
 
-```{r covariate-timeplot, fig.cap="Hourly time plots of covariates"}
+```{r covariate-timeplot, fig.cap="Hourly time plots of covariates", fig.scap="\\label{fig:cov-timeplot}"}
 bikets %>%
   select(Hour, where(is.numeric)) %>%
   select(-BikeCount) %>%
@@ -393,7 +401,7 @@ bikets %>%
         axis.text.y = element_text(size = 5))
 ```
 
-Time plots of the covariates (Figure 4)
+Time plots of the covariates (Figure \ref{fig:cov-timeplot})
 show a dynamic set of variables. Most of the
 covariates appear to be typical time series data with varying degrees of
 trend, seasonality, cyclicality, autocorrelation, and heteroskedasticity.
@@ -408,7 +416,7 @@ precipitation features, it may prove more performent to convert them to
 binary variables that simply indicate if precipitation occurred during that
 period.
 
-```{r corrplot, fig.width=6, fig.cap="Scatterplots and smoothed GAM fits of Bike Count vs. each covariate", dev = "CairoPDF"}
+```{r corrplot, fig.width=6, fig.cap="Scatterplots and smoothed GAM fits of Bike Count vs. each covariate", dev = "CairoPDF", fig.scap="\\label{fig:corrplot}"}
 plotdf <- select(bikets, where(is.numeric)) %>%
   as_tibble() %>%
   pivot_longer(-c(Hour, BikeCount), names_to = "Covariate", values_to = "Value") %>%
@@ -436,7 +444,7 @@ plotdf %>%
 
 
 
-Figure 5 highlights a number of important relationships in the data.
+Figure \ref{fig:corrplot} highlights a number of important relationships in the data.
 Bike count appears moderately linearly correlated with both temperature
 ($\rho=0.563$) and dewpoint ($\rho=0.400$), though a higher-order interaction
 might better represent this relationship. However, there is significant
@@ -482,7 +490,7 @@ bikets_cv_stretched <- stretch_tsibble(slice_head(bikets_cv, n = -24),
                                    .id = "fold")
 ```
 
-Figure 1 highlights the heteroskedasticity in the bike demand.
+Figure \ref{fig:timeplot} highlights the heteroskedasticity in the bike demand.
 This can be corrected using a simple Box-Cox transformation (@boxcox).
 If we let $x_t$ represent the value of raw Bike Count data and $y_t$ represent
 the transformed data, we have
@@ -548,7 +556,7 @@ Autocorrelation and partial
 autocorrelation plots can be used to determine the other ARIMA parameters (AR
 and MA).
 
-```{r acf, fig.cap="Correlograms for $\\nabla_Sy_t$", fig.height=2}
+```{r acf, fig.cap="Correlograms for $\\nabla_Sy_t$", fig.height=2, fig.scap="\\label{fig:acf}"}
 grid.arrange(
 bikets_cv %>%
   mutate(BikeCount = difference(box_cox(BikeCount, l), lag = 24)) %>%
@@ -561,7 +569,7 @@ bikets_cv %>%
 ncol = 2)
 ```
 
-Figure 6 indicates a seasonal autoregressive model with $P=6$ and $p\ge12$.
+Figure \ref{fig:acf} indicates a seasonal autoregressive model with $P=6$ and $p\ge12$.
 This is a large number of seasonal autoregressive terms and will almost
 certainly result in characteristic roots inside the unit circle, causing
 the model to be unstable. A quick search of the
@@ -597,7 +605,7 @@ process (note that in contrast to (\ref{eq:ols}) this is a non-seasonal ARIMA
 model; the seasonality is omitted from the ARIMA process because it is captured
 by the fourier terms).
 
-```{r arima-fourier, fig.height=4, fig.cap="Residuals for an ARIMAX(2,1,2) model with daily & weekly fourier terms"}
+```{r arima-fourier, fig.height=4, fig.cap="Residuals for an ARIMAX(2,1,2) model with daily and weekly fourier terms", fig.scap="\\label{fig:acf-arimax212}"}
 # model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 # ARIMAfourier <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(2,1,2) + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 ARIMAfourier %>%
@@ -608,7 +616,7 @@ ARIMAfourier %>%
 
 The fourier model resulted in the selection of an $ARIMA(2,1,2)$ process for the
 regression residuals. The residual ACF and PACF plots from the fourier model
-(Figure 7) still show significant autocorrelation.
+(Figure \ref{fig:acf-arimax212}) still show significant autocorrelation.
 Autocorrelation in the residuals violates the Gauss-Markov assumptions, meaning
 the model should not be used for inference. The goal of this analysis is to
 generate accurate (point) forecasts, which are still valid even when the errors
@@ -620,7 +628,7 @@ $p,d,q,P,D,Q$ are chosen automatically using `fable::ARIMA`, which relies on
 the algorithm developed by (@autoarima). This resulted in the selection of an
 $SARIMA(1,0,1)\times(5,1,0)_{24}$ for $x_t$.
 
-```{r auto-sarima, fig.height = 4, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$"}
+```{r auto-sarima, fig.height = 4, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$", fig.scap="\\label{fig:acf-sarimax101}"}
 # model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ() + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 # ARIMAauto <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(1,0,1) + PDQ(5,1,0) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 ARIMAauto %>%
@@ -629,7 +637,7 @@ ARIMAauto %>%
   labs(title = expression(paste("SARIMAX(1,0,1)"%*%"(5,1,0)"[24])))
 ```
 
-Figure 8 shows that, while the autocorrelation (and partial autocorrelation)
+Figure \ref{fig:acf-sarimax101} shows that, while the autocorrelation (and partial autocorrelation)
 for a $SARIMA(1,0,1)\times(5,1,0)_{24}$ model
 has been reduced over the $ARIMAX(2,1,2)$ with fourier terms, there is still
 repeating statistically significant autocorrelation. It is possible that the
@@ -666,7 +674,7 @@ consist of 63 folds/time-slices. We will search over the parameter space
 $m\in\{1, 2, 5, 10, 20, 50\}$ and $n\in\{3, 5, 10, 20, 50\}$, giving us
 $6\times5=30$ possible parameter combinations.
 
-```{r prophet-cv, fig.cap="Cross-validated MAE for Prophet models with various numbers of (daily and weekly) fourier terms", fig.height=3, fig.width=3}
+```{r prophet-cv, fig.cap="Cross-validated MAE for Prophet models with various numbers of (daily and weekly) fourier terms", fig.height=3, fig.width=3, fig.scap="\\label{fig:prophet-cv}"}
 holidays <- bikets_cv %>%
   filter(Holiday == "Holiday") %>%
   mutate(ds = as.Date(Hour)) %>%
@@ -737,11 +745,11 @@ prophet_fourier_cv %>%
        y = "n: Number of 'week' fourier terms")
 ```
 
-Figure 9 identifies $m=50$ and $n=50$ as the optimal number of fourier terms
+Figure \ref{fig:prophet-cv} identifies $m=50$ and $n=50$ as the optimal number of fourier terms
 (they minimize MAE).
 We fit this model to the entire training dataset and analyze the residuals.
 
-```{r prophet-resid, fig.cap="Residuals for a Prophet model with $m=50$ (daily) and $n=50$ (weekly) fourier terms", fig.height=2}
+```{r prophet-resid, fig.cap="Residuals for a Prophet model with $m=50$ (daily) and $n=50$ (weekly) fourier terms", fig.height=2, fig.scap="\\label{fig:prophet-resid}"}
 # prophetBasic <- bikets_cv %>%
 #   mutate(BikeCount = na_if(BikeCount, 0),
 #          Workday = factor(gsub(" ", "", as.character(Workday)), levels = c("Workday", "NotWorkday"))) %>%
@@ -784,7 +792,7 @@ prophetBasic %>%
 ncol = 2)
 ```
 
-As can be seen from the PACF of the residuals in Figure 10,
+As can be seen from the PACF of the residuals in Figure \ref{fig:prophet-resid},
 there is still autocorrelation not captured by the model.
 However, given that our
 goal is forecasting/prediction rather than inference, it should not pose a
@@ -793,7 +801,7 @@ problem for the analysis.
 ### fasster
 
 One interesting feature of the residual PACFs from both the SARIMAX
-model (Figure 8) and the Prophet model (Figure 11) is that
+model (Figure \ref{fig:acf-sarimax101}) and the Prophet model (Figure \ref{fig:prophet-resid}) is that
 the seasonal "spikes" are parabolic in shape. That is, the PACF starts high
 at lag 24, then decreases until reaching a min around lag 72 or
 lag 96 before rising again to another peak at lag 168 (which is
@@ -1242,7 +1250,7 @@ model.compile(loss='mae', optimizer='adam')
 history = model.fit(train_X, train_y, epochs=80, batch_size=12, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 ```
 
-```{python lag1-loss, fig.cap='Model loss - 1 hour lagged time steps as input', echo = FALSE, fig.height = 2, fig.width = 3, cache = FALSE}
+```{python lag1-loss, fig.cap='Model loss - 1 hour lagged time steps as input', echo = FALSE, fig.height = 2, fig.width = 3, cache = FALSE, fig.scap="\\label{fig:lstm1-loss}"}
 # summarize history for loss  
 # pyplot.plot(history.history['loss'], label='train')
 # pyplot.plot(history.history['val_loss'], label='test')
@@ -1253,7 +1261,7 @@ history = model.fit(train_X, train_y, epochs=80, batch_size=12, validation_data=
 # pyplot.show()
 ```
 
-Although in Figure 11 we can see both errors converge fairly fast, the proposed
+Although in Figure \ref{fig:lstm1-loss} we can see both errors converge fairly fast, the proposed
 network is not a good fit since there is a gap between the training error and
 test error.
 
@@ -1394,7 +1402,7 @@ model.compile(loss='mae', optimizer='adam')
 history = model.fit(train_X, train_y, epochs=60, batch_size=12, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 ```
 
-```{python lag12-loss, fig.cap='Model loss - 12 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5, cache = FALSE}
+```{python lag12-loss, fig.cap='Model loss - 12 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5, cache = FALSE, fig.scap="\\label{fig:lstm12-loss}"}
 # plot history 
 # pyplot.plot(history.history['loss'], label='train')
 # pyplot.plot(history.history['val_loss'], label='test')
@@ -1405,7 +1413,7 @@ history = model.fit(train_X, train_y, epochs=60, batch_size=12, validation_data=
 # pyplot.show()
 ```
 
-The Loss vs Epoch curve is shown in Figure 12 in which the progress of mode
+The Loss vs Epoch curve is shown in Figure \ref{fig:lstm12-loss} in which the progress of mode
 while training is represented. Both training and testing loss decreases in a
 smooth fashion fairly quickly.  
 
@@ -1830,9 +1838,9 @@ combined_acc <- combined_acc %>%
   rename(Model = .model)
 ```
 
-```{r accuracy-viz, fig.cap="Mean Absolute Error by Model", fig.height=3, fig.width=4, cache = FALSE}
+```{r accuracy-viz, fig.cap="Mean Absolute Error by Model", fig.height=3, fig.width=4, cache = FALSE, fig.scap="\\label{fig:mae-by-model}"}
 combined_acc %>%
-  knitr::kable(caption = "Test Error by Model Type", digits = 0) %>%
+  knitr::kable(caption = "Test Error by Model Type", digits = 0, label = "error-by-model") %>%
   kableExtra::pack_rows("Baseline",1,1) %>%
   kableExtra::pack_rows("Time Series Methods", 2, nrow(tsmodels_acc)+1) %>%
   kableExtra::pack_rows("Tree Methods", nrow(tsmodels_acc)+2, nrow(tsmodels_acc)+3) %>%
@@ -1867,7 +1875,7 @@ combined_acc %>%
   
 ```
 
-Table 3 and Figure 15 report the MAE and RMSE for each model. Perhaps
+Table \ref{tab:error-by-model} and Figure \ref{fig:mae-by-model} report the MAE and RMSE for each model. Perhaps
 unsurprisingly, the machine learning methods performed better than the
 time series methods, on average. The `r best_model` model
 performed the best (smallest MAE), with $MAE=$
