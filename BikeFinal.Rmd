@@ -195,14 +195,6 @@ bikets <- bike %>%
   as_tsibble(index = Hour)
 ```
 
-The dataset consists of `r scales::comma(nrow(bikets))` hourly observations of
-`r ncol(bikets)-1` variables from
-`r paste(range(bikets$Hour), collapse = " to ")`. There are
-`r sum(is.na(bikets$BikeCount))` observations where *BikeCount*=0 due to the
-bikeshare system not functioning. There are no other periods where
-*BikeCount*=0. Table \ref{tab:var-defs} contains information on the variables in
-the dataset, including the 
-
 ```{r dictionary}
 tibble::tribble(
   ~Variable, ~name, ~Type, ~Definition,
@@ -224,6 +216,14 @@ tibble::tribble(
   knitr::kable(caption = "Variable definitions",
                label = "var-defs")
 ```
+
+The dataset consists of `r scales::comma(nrow(bikets))` hourly observations of
+`r ncol(bikets)-1` variables from
+`r paste(range(bikets$Hour), collapse = " to ")`. There are
+`r sum(is.na(bikets$BikeCount))` observations where *BikeCount*=0 due to the
+bikeshare system not functioning. There are no other periods where
+*BikeCount*=0. Table \ref{tab:var-defs} contains information on the variables in
+the dataset, including the 
 
 ## Bike Count
 
