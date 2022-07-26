@@ -70,9 +70,19 @@ library(GGally)
 library(e1071)
 options(scipen = 999)
 load("BikeFinal.RData")
+mykable <- function(...) {
+  a <- list(...)
+  a$booktabs <- TRUE
+  a$format <- "latex"
+  do.call(knitr::kable, args = a) %>%
+    kableExtra::kable_styling(latex_options = c("HOLD_position", "striped"),
+                  stripe_color = "platinum") %>% 
+    kableExtra::row_spec(0, background = "black", color = "white", bold = TRUE)
+}
 ```
 
 \newcommand{\argmin}{\mathop{\mathrm{argmin}}}
+\definecolor{platinum}{rgb}{0.9, 0.89, 0.89}
 
 # Introduction
 
@@ -89,13 +99,14 @@ which can be appealing to cities struggling to contain emissions.
 A key challenge faced by administrators of bikesharing programs is the efficient
 allocation of available bicycles. Bikes must be available in the places that
 people need them and at the time they are needed in order for the program to
-be effective. In order to efficiently allocate bikes, administrators can
-periodically transport bikes from areas of low demand to areas of high demand
-(@schuijbroek). Demand in a bikeshare system is a function of both time
+be effective. In order to efficiently allocate bikes,
+@schuijbroek suggest administrators can
+periodically transport bikes from areas of low demand to areas of high demand.
+Demand in a bikeshare system is a function of both time
 and location. In this paper we focus on the time component of
 the demand for bicycles at each hour of the day, ignoring the spatial
 component of demand. We will use the Seoul Bike Sharing Demand data from
-UCI (@bikedata). Our focus will be limited to predicting demand at each hour
+@bikedata. Our focus will be limited to predicting demand at each hour
 of the day, ignoring inferential aspects of the analysis. While much of the
 recent research using this dataset has focused on machine learning
 methodologies, we will take a multifaceted approach that incorporates
@@ -119,12 +130,12 @@ highlighting potential areas of future research.
 
 The popularity and accessibility of the Seoul bike dataset has resulted in its
 use for numerous studies. A majority of these studies have focused on the
-use of various machine learning algorithms. Sathishkumar and Yongyun found that
+use of various machine learning algorithms. @sathishkumar found that
 a CUBIST model, which combines tree- and regression-based methods into a series
 of rules, performed best on the Seoul data when measured by $R^2$ and RMSE on
-the testing dataset (@sathishkumar). Gao and Chen found that another tree-based
+the testing dataset. @gao found that another tree-based
 method, random forest (RF), performed best on a similar bikeshare dataset when
-measured by $R^2$ and RMSE (@gao). Both studies further showed
+measured by $R^2$ and RMSE. Both studies further showed
 that weather-related variables, such as temperatures and precipitation, where
 among the most important for predicting demand. Gao and Chen's results
 highlight the importance of selecting a relevant evaluation metric and explanatory
@@ -140,9 +151,9 @@ evaluating predictions.
 
 Considerably fewer researchers have made use of traditional time series
 methodologies when predicting demand of a similar nature to the bikeshare data.
-Both (@sathishkumar) and (@gao) make use of temporal variables such as hour,
+Both @sathishkumar and @gao make use of temporal variables such as hour,
 day of the week, and holidays. In each case they were found to be of moderate or
-high importance. (@gao) applied linear regression using temporal
+high importance. @gao applied linear regression using temporal
 variables such as a weekend indicator as a predictor, but this model greatly
 underperformed the machine learning methods. Further, there is no discussion of
 any attention paid to stationarity and autoregression, which are common in time
@@ -213,7 +224,7 @@ tibble::tribble(
   "Functional Day", "FunctionalDay", "categorical", "NoFunc(Non Functional Hours), Fun(Functional hours)",
   "Workday", "Workday", "categorical", "Workday/Not Workday. A workday is a weekday that is not a holiday."
 ) %>%
-  knitr::kable(caption = "Variable definitions",
+  mykable(caption = "Variable definitions",
                label = "var-defs")
 ```
 
@@ -227,7 +238,7 @@ the dataset, including the
 
 ## Bike Count
 
-```{r timeplot, fig.width=8, fig.cap="Hourly bike demand", fig.scap="\\label{fig:timeplot}"}
+```{r timeplot, fig.width=8, fig.cap="Hourly bike demand"}
 gg_tsdisplay(bikets, BikeCount, plot_type = "histogram", lag_max = 24*7) +
   labs(title = "Hourly Bike Demand")
 ```
@@ -252,18 +263,18 @@ tstests <- features(bikets, BikeCount, c(unitroot_kpss,
                                          ~ljung_box(., lag = 24)))
 ```
 
-A KPSS test yields $p=$ `r tstests$kpss_pvalue`, meaning there is strong
+@kpss's test yields $p=$ `r tstests$kpss_pvalue`, meaning there is strong
 evidence in favor of the presence of a unit root and the data is likely
-non-stationary (@kpss). A Ljung-Box test was conducted up to 24 lags which
+non-stationary. @ljung's test was conducted up to 24 lags which
 resulted in a test statistics of `r round(tstests$lb_stat)` with
 $p=$ `r tstests$lb_pvalue`, indicating strong evidence that there is serial
-correlation in the hourly bike count (@ljung). The acf plot in Figure 1 shows
+correlation in the hourly bike count. The acf plot in Figure 1 shows
 that autocorrelation is significant at most lags out to 168 hours, which
 represents the same hour of the same day in the previous week. The strong
 serial correlation makes this dataset a good candidate for time series
 techniques.
 
-```{r season-plots, fig.width = 8, fig.cap="Hourly bike demand by time period", fig.scap="\\label{fig:season-plots}"}
+```{r season-plots, fig.width = 8, fig.cap="Hourly bike demand by time period"}
 grid.arrange(
 ggplot(bikets, aes(x = format(Hour, "%H"), y = BikeCount, fill = lubridate::hour(Hour))) +
   geom_boxplot() +
@@ -302,7 +313,7 @@ of large positive outliers during the weekdays. Finally, demand appears
 largest during the summer months and smallest during the winter, as biking would
 be a less desirable option in the cold.
 
-```{r seasonality-weekends, fig.cap="Hourly bike demand by type of day, highlighting differing seasonality between workdays and non-workdays", fig.height=3, fig.width=4.5, fig.scap="\\label{fig:season-weekend}"}
+```{r seasonality-weekends, fig.cap="Hourly bike demand by type of day, highlighting differing seasonality between workdays and non-workdays", fig.height=3, fig.width=4.5}
 grid.arrange(
 bikets[1000:1672,] %>%
   select(Hour, BikeCount, Workday) %>%
@@ -363,7 +374,7 @@ ggplot(aes(x = Hour, y = BikeCount, color = `Day Type`)) +
 newpage = FALSE)
 ```
 
-Figure \ref{fig:season-weekend} provides insight into the seasonality of the bike demand. Each panel
+Figure \ref{fig:seasonality-weekends} provides insight into the seasonality of the bike demand. Each panel
 is a 4-week sample of hourly bike demand, with non-workdays (weekends and
 holidays) highlighted in red. While these days appear to follow a consistent
 hourly pattern much like the workdays, we can see that their is a difference
@@ -385,7 +396,7 @@ social. Weather covariates include variables such as temperature, humidity,
 precipitation, and others. Social variables capture the impact of calendar-based
 human behavior, such as holidays and weekends.
 
-```{r covariate-timeplot, fig.cap="Hourly time plots of covariates", fig.scap="\\label{fig:cov-timeplot}"}
+```{r covariate-timeplot, fig.cap="Hourly time plots of covariates"}
 bikets %>%
   select(Hour, where(is.numeric)) %>%
   select(-BikeCount) %>%
@@ -401,7 +412,7 @@ bikets %>%
         axis.text.y = element_text(size = 5))
 ```
 
-Time plots of the covariates (Figure \ref{fig:cov-timeplot})
+Time plots of the covariates (Figure \ref{fig:covariate-timeplot})
 show a dynamic set of variables. Most of the
 covariates appear to be typical time series data with varying degrees of
 trend, seasonality, cyclicality, autocorrelation, and heteroskedasticity.
@@ -412,11 +423,11 @@ visibility, and Wind Speed appear to have less of a trend throughout the year.
 Precipitation (rainfall and snowfall) appears to have a much more random
 pattern throughout the year, with a large number of periods having no
 precipitation. Depending on the predictive performance of the raw continuous
-precipitation features, it may prove more performent to convert them to
+precipitation features, it may prove more performant to convert them to
 binary variables that simply indicate if precipitation occurred during that
 period.
 
-```{r corrplot, fig.width=6, fig.cap="Scatterplots and smoothed GAM fits of Bike Count vs. each covariate", dev = "CairoPDF", fig.scap="\\label{fig:corrplot}"}
+```{r corrplot, fig.width=6, fig.height = 4, fig.cap="Scatterplots and smoothed GAM fits of Bike Count vs. each covariate", dev = "CairoPDF"}
 plotdf <- select(bikets, where(is.numeric)) %>%
   as_tibble() %>%
   pivot_longer(-c(Hour, BikeCount), names_to = "Covariate", values_to = "Value") %>%
@@ -431,11 +442,12 @@ cordf <- plotdf %>%
 plotdf %>%
   ggplot(aes(x = Value, y = BikeCount)) +
   geom_point() +
-  geom_label(data = cordf, mapping = aes(x = mx*.8, y = 3500, label = paste("\u03c1","=", round(p,3))), size = 3) +
+  geom_label(data = cordf, mapping = aes(x = mx*.8, y = 3000, label = paste("\u03c1","=", round(p,3))), size = 2) +
   facet_wrap(vars(Covariate), nrow = 3, ncol = 3, scales = "free_x") +
   scale_y_continuous(limits = c(0, NA)) +
   scale_x_continuous(name = "Covariate Value") +
-  geom_smooth()
+  geom_smooth() +
+  theme(strip.text = element_text(size = 8), axis.text = element_text(size = 6))
   # ggpairs() +
   # theme(axis.text = element_blank(),
   #       axis.ticks = element_blank(),
@@ -491,7 +503,7 @@ bikets_cv_stretched <- stretch_tsibble(slice_head(bikets_cv, n = -24),
 ```
 
 Figure \ref{fig:timeplot} highlights the heteroskedasticity in the bike demand.
-This can be corrected using a simple Box-Cox transformation (@boxcox).
+This can be corrected using a @boxcox's transformation.
 If we let $x_t$ represent the value of raw Bike Count data and $y_t$ represent
 the transformed data, we have
 
@@ -506,7 +518,7 @@ l <- bikets_cv %>%
   pull(lambda_guerrero)
 ```
 
-where $\lambda=$ `r l` was selected using Guerrero's method (@guerrero).
+where $\lambda=$ `r l` was selected using @guerrero's method.
 
 ### SARIMAX
 
@@ -549,14 +561,13 @@ where:
 * $\theta(B)$ are the $q$ moving average components
 * $w_t\sim\text{ iid }N(0,\sigma_w^2)$ is the traditional Gaussian white noise
 
-(@shumway). SARIMA models of this form are often written
+as degined by @shumway. SARIMA models of this form are often written
 $ARIMA(p,d,q)\times(P,D,Q)_S$. A KPSS test indicates that the data is
-non-stationary and requires $D=1$ seasonal difference (@kpss).
+non-stationary and requires $D=1$ seasonal difference.
 Autocorrelation and partial
-autocorrelation plots can be used to determine the other ARIMA parameters (AR
-and MA).
+autocorrelation plots can be used to determine the ARIMA order.
 
-```{r acf, fig.cap="Correlograms for $\\nabla_Sy_t$", fig.height=2, fig.scap="\\label{fig:acf}"}
+```{r acf, fig.cap="Correlograms for $\\nabla_Sy_t$", fig.height=2}
 grid.arrange(
 bikets_cv %>%
   mutate(BikeCount = difference(box_cox(BikeCount, l), lag = 24)) %>%
@@ -573,15 +584,15 @@ Figure \ref{fig:acf} indicates a seasonal autoregressive model with $P=6$ and $p
 This is a large number of seasonal autoregressive terms and will almost
 certainly result in characteristic roots inside the unit circle, causing
 the model to be unstable. A quick search of the
-parameter space using the `R` function `fable::ARIMA` 
-(@fable) to automatically select values for
+parameter space using the `R` function `ARIMA` 
+@fable's `fable` package to automatically select values for
 $p, d, q, Q$ results in no stable $ARIMA(p,d,q)\times(6,1,Q)_{24}$ models
 being found.
 
 When the data
 exhibit higher frequency or multiple types of seasonality (such as daily and
 weekly, in our case), an alternative solution for modeling seasonality
-can be to use fourier terms (@fpp3). 
+suggested by @fpp3 can be to use fourier terms. 
 Introducing the fourier terms will result in a model of the form
 
 
@@ -605,7 +616,10 @@ process (note that in contrast to (\ref{eq:ols}) this is a non-seasonal ARIMA
 model; the seasonality is omitted from the ARIMA process because it is captured
 by the fourier terms).
 
-```{r arima-fourier, fig.height=4, fig.cap="Residuals for an ARIMAX(2,1,2) model with daily and weekly fourier terms", fig.scap="\\label{fig:acf-arimax}"}
+The R function `fable::ARIMA` is used to fit this model, which, as @arimamissing
+notes, handles missing values automatically using a Kalman filter.
+
+```{r arima-fourier, fig.height=4, fig.cap="Residuals for an ARIMAX(2,1,2) model with daily and weekly fourier terms"}
 # model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 # ARIMAfourier <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(2,1,2) + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 ARIMAfourier %>%
@@ -616,19 +630,19 @@ ARIMAfourier %>%
 
 The fourier model resulted in the selection of an $ARIMA(2,1,2)$ process for the
 regression residuals. The residual ACF and PACF plots from the fourier model
-(Figure \ref{fig:acf-arimax}) still show significant autocorrelation.
+(Figure \ref{fig:arima-fourier}) still show significant autocorrelation.
 Autocorrelation in the residuals violates the Gauss-Markov assumptions, meaning
 the model should not be used for inference. The goal of this analysis is to
 generate accurate (point) forecasts, which are still valid even when the errors
 exhibit autocorrelation.
 
-Finally, we will fit a linear regression with SARIMA errors to the data where
+Next we will fit a linear regression with SARIMA errors to the data where
 all parameters
 $p,d,q,P,D,Q$ are chosen automatically using `fable::ARIMA`, which relies on
-the algorithm developed by (@autoarima). This resulted in the selection of an
+the algorithm developed by @autoarima. This resulted in the selection of an
 $SARIMA(1,0,1)\times(5,1,0)_{24}$ for $x_t$.
 
-```{r auto-sarima, fig.height = 4, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$", fig.scap="\\label{fig:acf-sarimax}"}
+```{r auto-sarima, fig.height = 4, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$"}
 # model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ() + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 # ARIMAauto <- model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq(1,0,1) + PDQ(5,1,0) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
 ARIMAauto %>%
@@ -637,18 +651,75 @@ ARIMAauto %>%
   labs(title = expression(paste("SARIMAX(1,0,1)"%*%"(5,1,0)"[24])))
 ```
 
-Figure \ref{fig:acf-sarimax} shows that, while the autocorrelation (and partial autocorrelation)
+Figure \ref{fig:auto-sarima} shows that, while the autocorrelation (and partial autocorrelation)
 for a $SARIMA(1,0,1)\times(5,1,0)_{24}$ model
 has been reduced over the $ARIMAX(2,1,2)$ with fourier terms, there is still
-repeating statistically significant autocorrelation. It is possible that the
+repeating statistically significant autocorrelation.
+
+Finally, we will test a SARIMAX model that makes use of two derived
+variables. First, as was seen in Figure \ref{fig:corrplot}, there appears to
+be a higher-order relationship between temperature and bike count. Therefore,
+we will add a $\text{Temperature}^2$ term to the model. Additionally, as can
+be seen in \ref{fig:covariate-timeplot}, Rainfall and Snowfall are both
+continuous variables that have a large number of zero values. We believe it is
+a reasonable assumption that the presence or absence of Rainfall or Snowfall
+will have the largest impact on the bike count, and the quantity of rain or snow
+is only marginal in effect compared with the presence or absence rain or snow.
+Further, we believe that any precipitation, regardless of type, will impact
+bike count, and the type (and quantity) of precipitation is of much less
+importance. Therefore, we will create a derived indicator variable
+`Precipitation_Flag` to identify the presence of any precipitation,
+defined as follows:
+
+\begin{equation}
+\label{eq:precip-flag}
+\text{Precipitation Flag}=\begin{cases}
+1,& \text{Rainfall}>0\text{ or }\text{Snowfall}>0\\
+0,& otherwise
+\end{cases}
+\end{equation}
+
+
+```{r auto-sarima-poly, fig.height = 4, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$ with $\\text{Temperature}^2$ and $\\text{Precipitation Flag}$"}
+bikets_cv <- bikets_cv %>%
+  mutate(Precipitation_Flag = (Rainfall + Snowfall) > 0,
+         TSquare = Temperature ^ 2)
+# arimaT2Precip <- bikets_cv %>% model(
+#            arimaT2Precip = ARIMA(
+#              box_cox(BikeCount, l) ~ 1 + pdq(1, 0, 1) + PDQ(5, 1, 0) + Humidity + Precipitation_Flag + SolarRadiation + Temperature + TSquare + Visibility + WindSpeed + Seasons + Workday
+#            )
+#          )
+arima_ic_comp <- glance(bind_cols(ARIMAauto,arimaT2Precip))
+
+arimaT2Precip %>%
+  residuals() %>%
+  gg_tsdisplay(.resid, plot_type = "partial", lag_max = 24*7)+
+  labs(title = expression(paste("SARIMAX(1,0,1)"%*%"(5,1,0)"[24]~"with"~"Temperature"^2~"and  Precipitation_Flag")))
+
+
+```
+
+The addition of $\text{Temperature}^2$ and $\text{Precipitation Flag}$ have
+reduced AIC from `r paste(round(arima_ic_comp$AIC), collapse = " to ")`,
+AICc from `r paste(round(arima_ic_comp$AICc), collapse = " to ")`,
+and BIC from `r paste(round(arima_ic_comp$BIC), collapse = " to ")`, when
+compared with the model from Figure \ref{fig:auto-sarima}. Therefore
+the addition of these two variables has helped improve the model fit. 
+Unfortunately, as \ref{fig:auto-sarima-poly} shows there is still
+statistically significant autocorrelation in the residuals
+It is possible that the
 seasonal patterns in the data are too complex or too high frequency to be
-captured by an ARIMA, ARIMAX, or SARIMAX model. Therefore, we will explore more
-modern time series techniques.
+captured by an ARIMA, ARIMAX, or SARIMAX model. As a result of the residual
+variance structure, prediction intervals cannot be generated with these models,
+though point estimates are still valid.
+
+In an effort to overcome the current residual structure 
+we will explore more modern time series techniques.
 
 ### Prophet
 
-Prophet uses a generalized additive model (GAM) to capture the different
-features of the time series (@prophet). Our model will take the form
+@prophet's Prophet uses a generalized additive model (GAM) to capture the different
+features of the time series. Our model will take the form
 
 \begin{equation}
 \label{eq:prophet}
@@ -665,16 +736,19 @@ where:
 
 One major benefit of (\ref{eq:prophet}) is that it is much faster to fit than
 a model with ARIMA terms. The downside is that it does not explicitly capture
-(non-seasonal) $AR(p)$ and $MA(q)$ terms. We will use
-`fable.prophet::prophet` to train the model in `R` (@fableprophet). The `R`
+(non-seasonal) $AR(p)$ and $MA(q)$ terms. As @prophet note, because this is
+a curve-fitting exercise rather than a generative model, missing values do
+not need to be imputed. We will use
+`prophet` from @fableprophet's package `fable.prophet` to train the model in `R`.
+The `R`
 function sets a number of desirable default parameter values as
-recommended by (@prophet). In order to properly tune the model to our dataset
+recommended by @prophet. In order to properly tune the model to our dataset
 we will use TSCV (see [Model Selection and Test Error](#Model-Selection-and-Test-Error)) to select $m$ and $n$. The TSCV will
 consist of 63 folds/time-slices. We will search over the parameter space
 $m\in\{1, 2, 5, 10, 20, 50\}$ and $n\in\{3, 5, 10, 20, 50\}$, giving us
 $6\times5=30$ possible parameter combinations.
 
-```{r prophet-cv, fig.cap="Cross-validated MAE for Prophet models with various numbers of (daily and weekly) fourier terms", fig.height=3, fig.width=3, fig.scap="\\label{fig:prophet-cv}"}
+```{r prophet-cv, fig.cap="Cross-validated MAE for Prophet models with various numbers of (daily and weekly) fourier terms", fig.height=3, fig.width=3}
 holidays <- bikets_cv %>%
   filter(Holiday == "Holiday") %>%
   mutate(ds = as.Date(Hour)) %>%
@@ -743,35 +817,36 @@ prophet_fourier_cv %>%
   labs(title = "Prophet out-of-sample MAE",
        x = "m: Number of 'day' fourier terms",
        y = "n: Number of 'week' fourier terms")
+
 ```
 
 Figure \ref{fig:prophet-cv} identifies $m=50$ and $n=50$ as the optimal number of fourier terms
 (they minimize MAE).
-We fit this model to the entire training dataset and analyze the residuals.
+We fit this model to the entire training dataset, including
+the two derived variables discussed in the [SARIMAX](#sarimax) section, and analyze the residuals.
 
-```{r prophet-resid, fig.cap="Residuals for a Prophet model with $m=50$ (daily) and $n=50$ (weekly) fourier terms", fig.height=2, fig.scap="\\label{fig:prophet-resid}"}
-# prophetBasic <- bikets_cv %>%
-#   mutate(BikeCount = na_if(BikeCount, 0),
-#          Workday = factor(gsub(" ", "", as.character(Workday)), levels = c("Workday", "NotWorkday"))) %>%
-#         model(
-#           prophet = prophet(
-#             box_cox(BikeCount, l) ~ season(
-#               period = "day",
-#               type = "additive",
-#               order = 50,
-#               name = "day"
-#             ) + season(
-#               period = "week",
-#               type = "additive",
-#               order = 50,
-#               name = "week"
-#             ) + growth() + Workday + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons
-#           )
-#         )
-
+```{r prophet-resid, fig.cap="Residuals for a Prophet model with $m=50$ (daily) and $n=50$ (weekly) fourier terms", fig.height=2}
+# prophetT2Precip <- bikets_cv %>%
+#   mutate(Precipitation_Flag = (Rainfall + Snowfall) > 0,
+#          TSquare = Temperature^2) %>%
+#   model(
+#     prophetT2Precip = prophet(
+#       box_cox(BikeCount, l) ~ season(
+#         period = "day",
+#         type = "additive",
+#         order = 50,
+#         name = "day"
+#       ) + season(
+#         period = "week",
+#         type = "additive",
+#         order = 50,
+#         name = "week"
+#       ) + growth() + Workday + Humidity + Precipitation_Flag + SolarRadiation + Temperature + TSquare + Visibility + WindSpeed + Seasons
+#     )
+#   )
 
 grid.arrange(
-prophetBasic %>%
+prophetT2Precip %>%
   residuals() %>%
   ACF(.resid, lag_max = 24*7) %>%
   autoplot() + 
@@ -780,7 +855,7 @@ prophetBasic %>%
   theme(axis.title.y = element_blank(), 
         axis.text.x = element_text(size = 6),
         title = element_text(size = 8)),
-prophetBasic %>%
+prophetT2Precip %>%
   residuals() %>%
   PACF(.resid, lag_max = 24*7) %>%
   autoplot() + 
@@ -793,22 +868,27 @@ ncol = 2)
 ```
 
 As can be seen from the PACF of the residuals in Figure \ref{fig:prophet-resid},
-there is still autocorrelation not captured by the model.
-However, given that our
-goal is forecasting/prediction rather than inference, it should not pose a
+there is still autocorrelation not captured by the model. Therefore, the
+model point estimates will be valid but prediction
+intervals cannot be generated due to the error structure. This is to be expected,
+as @prophet notes that the design of Prophet as a curve-fitting exercise, rather
+than a generative model (such as ARIMA) that captures the temporal dependence
+of the data, can be expected to give up some inferential capabilities
+(in exchange for computational and other benefits).
+Given that our
+goal is forecasting/prediction rather than inference, this should not pose a
 problem for the analysis.
 
 ### fasster
 
 One interesting feature of the residual PACFs from both the SARIMAX
-model (Figure \ref{fig:acf-sarimax}) and the Prophet model (Figure \ref{fig:prophet-resid}) is that
+model (Figure \ref{fig:auto-sarima}) and the Prophet model (Figure \ref{fig:prophet-resid}) is that
 the seasonal "spikes" are parabolic in shape. That is, the PACF starts high
 at lag 24, then decreases until reaching a min around lag 72 or
 lag 96 before rising again to another peak at lag 168 (which is
 the one week lag). This shape might be why the AR and fourier terms are not
 capturing all of the autocorrelation in the data: the strength of the
 correlation appears to be a non-linear function of time.
-
 One reason for this
 shape in the PACF plot could be the presence of switching seasonality. More
 specifically, it's possible that the seasonality (not just the series itself)
@@ -817,29 +897,92 @@ hand-wavy analysis would say that, given there are seven days in a
 week, any single day is, on "average", $7/2=3.5$ days away from any other day.
 For weekdays specifically, they are 3.5 days away from a weekend (again, on
 average).
-
 Therefore, the trough in the PACF curve occurring between 3 and 4 days
 might be due to that lag most frequently correlating weekdays with weekend days,
 resulting in lower correlation than when weekdays are compared with other
-weekdays, which would occurr most frequently at lags $<3$ and $>4$. This is
+weekdays, which would occur most frequently at lags $<3$ and $>4$. This is
 certainly not a technical explanation of the pattern, but it is plausible. The
 previously employed techniques (SARIMAX and Prophet) don't allow for changing
-seasonality. The fasster methodology allows for the seasonal (and trend)
+seasonality. @fasster's fasster methodology allows for the seasonal (and trend)
 component(s) of the model to be switched based on the "state" of a given
-observation, which is defined via a discrete variable passed to the model
-(@fasster). In
+observation, which is defined via a discrete variable passed to the model. In
 our case, this variable would be *Workday*, which identifies the observation
-as a workday or non-workday (weeeknd or holiday). Different seasonality
+as a workday or non-workday (weekend or holiday). Different seasonality
 coefficients can then be fit based on whether a bike count is observed on
 a workday or non-workday. This is an improvement over the previous models,
 which simply include the *Workday* variable as a regression coefficient,
-reducing its effect to a shift in the level of the series.
+reducing its effect to a shift in the level of the series. Like some of the
+previous methods, fasster uses fourier terms to capture seasonality. We will
+use 10 and 5 $\sin$-$\cos$ for the daily and weekly seasonality, respectively,
+based on the recommendation of @fpp3.
 
-```{r fasster, eval = FALSE}
+```{r fasster, fig.cap="ACF and PACF of the residuals from the fasster model."}
 library(fasster)
-fassterModels <- bikets_cv %>%
-  model(fassterSeason = fasster(BikeCount ~ Workday %S% (season(24) + season(24*7) + trend(1)) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons),
-        fassterSeason = fasster(BikeCount ~ Workday %S% (fourer(24) + fourier(27*7) + trend(1)) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons))
+# fassterFourierT2Precip <- bikets_cv %>%
+#   mutate(Precipitation_Flag = (Rainfall + Snowfall) > 0,
+#          TSquare = Temperature^2) %>%
+#   model(fassterFourierT2Precip = fasster(box_cox(BikeCount, l) ~ Workday %S% (fourier(24, 10) + fourier(27*7, 5) + trend(1)) + Humidity + Precipitation_Flag + SolarRadiation + Temperature + TSquare + Visibility + WindSpeed + Seasons)
+#         )
+grid.arrange(
+fassterFourierT2Precip %>%
+  residuals() %>%
+  ACF(.resid, lag_max = 24*7) %>%
+  autoplot() + 
+  labs(title = "ACF of FASSTER model") +
+  theme(axis.title.y = element_blank(), 
+        axis.text.x = element_text(size = 6),
+        title = element_text(size = 8)),
+fassterFourierT2Precip %>%
+  residuals() %>%
+  PACF(.resid, lag_max = 24*7) %>%
+  autoplot() + 
+  labs(title = "PACF of FASSTER model") +
+  theme(axis.title.y = element_blank(), 
+        axis.text.x = element_text(size = 6),
+        title = element_text(size = 8)),
+ncol = 2)
+```
+
+As with all of the other time-series models, fasster is not able to capture
+the autogression in the series, resulting in significantly autocorrelated
+errors. Therefore, point forecasts from the fasster model are valid, but
+inference may not be conducted with the model due to the impact of the
+autocorrelation on the covariance structure of the model.
+
+```{r fasster-ar, eval=FALSE}
+fassterFourierT2Precip <- select(fassterModels, fassterFourierT2Precip)
+fasster_resid <- residuals(fassterFourierT2Precip)
+fasster_resid_ar <- fasster_resid %>%
+  model(fasster_resid_ar = ARIMA(.resid ~ pdq(d=0, q=0) + PDQ(P=0, D=0,Q=0)))
+resid_ar_coefs <- fasster_resid_ar %>%
+  rename(m1 = .model) %>%
+  coefficients()
+ar_coefs <- resid_ar_coefs$estimate
+
+fassterFourierT2PrecipAR <- bikets_cv %>%
+  mutate(Precipitation_Flag = (Rainfall + Snowfall) > 0,
+         TSquare = Temperature^2) %>%
+  model(fassterFourierT2PrecipAR = fasster(box_cox(BikeCount, l) ~ Workday %S% (fourier(24, 10) + fourier(27*7, 5) + trend(1)) + ARMA(ar = c(0.614999208742236, 0.125362371648011), ma = 0) + Humidity + Precipitation_Flag + SolarRadiation + Temperature + TSquare + Visibility + WindSpeed + Seasons)
+        )
+
+grid.arrange(
+fassterFourierT2PrecipAR %>%
+  residuals() %>%
+  ACF(.resid, lag_max = 24*7) %>%
+  autoplot() + 
+  labs(title = "ACF of FASSTER model with AR terms") +
+  theme(axis.title.y = element_blank(), 
+        axis.text.x = element_text(size = 6),
+        title = element_text(size = 8)),
+fassterFourierT2PrecipAR %>%
+  residuals() %>%
+  PACF(.resid, lag_max = 24*7) %>%
+  autoplot() + 
+  labs(title = "PACF of FASSTER model with AR terms") +
+  theme(axis.title.y = element_blank(), 
+        axis.text.x = element_text(size = 6),
+        title = element_text(size = 8)),
+ncol = 2)
 ```
 
 ## Machine Learning
@@ -888,14 +1031,14 @@ XFull = XFull %>%
 
 #### Random Forests
 
-Random forests is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing B unpruned trees from B bootstrap samples and averaging the predictions as displayed in Eq. (\ref{eq:rf}).
+Random forests is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing $B$ unpruned trees from $B$ bootstrap samples and averaging the predictions $\hat{f}$ as displayed in Eq. (\ref{eq:rf}).
 \begin{equation}
   \label{eq:rf}
   \hat{f}_{bag}(x)=\frac{1}{B}\sum_{b=1}^{B}\hat{f^{*b}}(x)
 \end{equation}
-One notable drawback of bagging is that the individual trees can be very correlated depending on how strong the predictors are. Random forests addresses this issue by randomly selecting a subset of the features at each split and thus de-correlating the trees.
+One notable drawback of bagging is that the individual trees can be very correlated depending on how strong the predictors are. Random forests address this issue by randomly selecting a subset of the features at each split and thus de-correlating the trees.
 
-Random Forests (RF) is implemented using the ranger package for increased computational speed. Note that RF is an algorithm that is known to provide good results in the default settings (@JMLRdelgado14a). The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features that are available at each split. In the regression case, p/3 is the default setting. When executing ranger via caret it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
+Random Forests (RF) is implemented using the ranger package for increased computational speed. @JMLRdelgado14a notes that RF is an algorithm that is known to provide good results in the default settings. The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features that are available at each split. In the regression case, p/3 is the default setting. When executing ranger via caret it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
 
 ```{r rf, echo=F, warning=F, message=F, error=F, include=F, eval = FALSE}
 cv_n <- nrow(bike)-(24*50)
@@ -918,19 +1061,19 @@ rfOut = train(XFull[1:cv_n,] , bike$BikeCount[1:cv_n],
 
 ```
 
-The hyperparameters of our model are evaluated using TSCV, yielding an optimal *mtry* value of 53. Such a high value is usually indicative of a high number of relevant predictors (@probst).
+The hyperparameters of our model are evaluated using TSCV, yielding an optimal *mtry* value of 53. @probst suggests that such a high value is usually indicative of a high number of relevant predictors.
 
 #### XGBoost 
 
 XGBoost is an advanced implementation of Gradient Boosting, which is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
 
-The first step is to initialize the model with a constant value $\gamma$, which can be obtained by solving the following optimization problem:
+The first step is to initialize the model $F(x)$ with a constant value $\gamma$, which can be obtained by minimizing it with respect to a loss function L, as displayed in the following optimization problem:
 \begin{equation} 
   F_0(x)=\argmin_{\gamma}\sum_{i=1}^{n}L(y_i,\gamma)
 \end{equation}
-After specifying the number of base learners M, the following steps are repeated for each base learner from $m=1$ to $m=M$:
+After specifying the number of base learners M, the following steps are repeated for each base learner from m=1 to m=M:
 
-First, the pseudo-residuals are calculated for each ith training example.
+First, the pseudo-residuals $r_{im}$ are calculated for each ith training example.
  \begin{equation} 
   r_{im}= -\left[\displaystyle \frac{\partial L(y_i,F(x_i))}{\partial F(x_i)}\right]_{F(x)=F_{m-1}(x)}
  \end{equation}
@@ -944,7 +1087,7 @@ Then a base learner $h_m(x)$ is fit to the pseudo-residuals using the modified t
 
 XGBoost is a more regularized form of Gradient Boosting which uses L1 and L2 regularization to improve model generalization capabilities. It also allows for parallel processing, and has a built-in routine for handling missing values via its sparsity-aware split finding algorithm.
 
-There are a variety of booster parameters in XGBoost that can be optimized via TSCV. Rather than tuning all parameters simultaneously, it often helps to make small changes incrementally (@banerjee). The general idea is to start with a high learning rate and a small number of base learners, then tune other parameters, and finally decrease the learning rate while proportionally increasing the number of trees. The other adjusted parameters are the maximum depth of a tree *max_depth*, the minimum required loss reduction *gamma*, the fraction of columns to be subsampled *colsample_bytree*, the minimum sum of weights of all observations required in a child *min_child_weight*, and the fraction of observations to be randomly sampled per tree *subsample*.
+There are a variety of booster parameters in XGBoost that can be optimized via TSCV. Rather than tuning all parameters simultaneously, @banerjee found it often helps to make small changes incrementally. The general idea is to start with a high learning rate and a small number of base learners, then tune other parameters, and finally decrease the learning rate while proportionally increasing the number of trees. The other adjusted parameters are the maximum depth of a tree *max_depth*, the minimum required loss reduction *gamma*, the fraction of columns to be subsampled *colsample_bytree*, the minimum sum of weights of all observations required in a child *min_child_weight*, and the fraction of observations to be randomly sampled per tree *subsample*.
 
 ```{r XGBoost, error=F, message=FALSE, warning=FALSE, include=FALSE, eval = FALSE}
 # Tuning Steps:
@@ -981,9 +1124,10 @@ boostOut = train(XFull[1:cv_n, ] , bike$BikeCount[1:cv_n],
 
 ### Long Short-Term Memory (LSTM) Recurrent Neural Network
 
-LSTM is a variety of Recurrent Neural Network (RNN). The benefit of the
+LSTM is a variety of Recurrent Neural Network (RNN). According to
+@hochreiter_1997_long, the benefit of the
 Long Short-Term Memory (LSTM) network over other recurrent networks comes
-from "constant error back propagation" (@hochreiter_1997_long),
+from "constant error back propagation",
 an improved method of back-propagating the error.
 
 The Constant Error Carousel (CEC) is the magic of the LSTM in that it prevents
@@ -1008,10 +1152,10 @@ backpropagation from cell to cell.
 
 #### Data processing
 
-It is a good idea for machine learning algorithms that fit a model that uses
+@brownlee_2020_how suggest it is a good idea for machine learning algorithms that fit a model that uses
 a weighted sum of input variables, such as linear regression, logistic
 regression, and artificial neural networks (deep learning) to normalize the
-data (@brownlee_2020_how). Here, by using the `scikit-learn` object
+data. Here, by using the `scikit-learn` object
 *MinMaxScaler*, the normalization scales each input variable separately
 to the range $[0,1]$, which is the range for floating-point values where we
 have the most precision. A value is normalized as follows:
@@ -1250,7 +1394,7 @@ model.compile(loss='mae', optimizer='adam')
 history = model.fit(train_X, train_y, epochs=80, batch_size=12, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 ```
 
-```{python lag1-loss, fig.cap='Model loss - 1 hour lagged time steps as input', echo = FALSE, fig.height = 2, fig.width = 3, cache = FALSE, fig.scap="\\label{fig:lstm1-loss}"}
+```{python lag1-loss, fig.cap='Model loss - 1 hour lagged time steps as input', echo = FALSE, fig.height = 2, fig.width = 3, cache = FALSE}
 # summarize history for loss  
 # pyplot.plot(history.history['loss'], label='train')
 # pyplot.plot(history.history['val_loss'], label='test')
@@ -1331,7 +1475,7 @@ lstmplot(history, inv_y, inv_yhat, 'Lag 1')
 # pyplot.show()
 ```
 
-Although in Figure \ref{fig:lstm1-loss} we can see both errors converge fairly fast, the proposed
+Although in Figure \ref{fig:lag1-forecast} we can see both errors converge fairly fast, the proposed
 network is not a good fit since there is a gap between the training error and
 test error.
 
@@ -1402,7 +1546,7 @@ model.compile(loss='mae', optimizer='adam')
 history = model.fit(train_X, train_y, epochs=60, batch_size=12, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 ```
 
-```{python lag12-loss, fig.cap='Model loss - 12 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5, cache = FALSE, fig.scap="\\label{fig:lstm12-loss}"}
+```{python lag12-loss, fig.cap='Model loss - 12 hour lagged time steps as input', echo = FALSE, fig.height = 4, fig.width = 5, cache = FALSE}
 # plot history 
 # pyplot.plot(history.history['loss'], label='train')
 # pyplot.plot(history.history['val_loss'], label='test')
@@ -1460,7 +1604,7 @@ maeL12 = mae(inv_y, inv_yhat)
 lstmplot(history, inv_y, inv_yhat, 'Lag 12')
 ```
 
-The Loss vs Epoch curve is shown in Figure \ref{fig:lstm12-loss} in which the progress of mode
+The Loss vs Epoch curve is shown in Figure \ref{fig:lag12-forecast} in which the progress of mode
 while training is represented. Both training and testing loss decreases in a
 smooth fashion fairly quickly.  
 
@@ -1598,17 +1742,17 @@ lstmplot(history, inv_y, inv_yhat, 'Lag 24')
 Given our stated use for these models is forecasting (prediction), when
 discussing model evaluation we must first define the notion of forecast
 (prediction) error rate.
-There are a number of different metrics to use for forecast error, each
-with their own benefits and drawbacks (@fcacc). 
+@fcacc define a number of different metrics to use for forecast error, each
+with their own benefits and drawbacks. 
 We will use Mean Absolute Error (MAE) to select the best model from among the
 list of candidate models. Unlike percent errors, which have the general form
 $100\times\frac{\hat{e}}{y_t}$, MAE is defined when $y_t=0$. Further, MAE
 is on the same scale as the original dataset
 (number of bikes per hour), which gives it nice properties of interpretability.
 We will also report Root Mean Squared Error (RMSE), as it is a common error
-metric. Using MAE will result in
-forecasts of the median while RMSE results in forecasts of the mean
-(@fpp3). Because our data appear skewed, the median is a more appropriate measure
+metric. According to @fpp3, using MAE will result in
+forecasts of the median while RMSE results in forecasts of the mean.
+Because our data appear skewed, the median is a more appropriate measure
 of center. Therefore,
 MAE is the best error metric for selecting the best forecasting model and
 estimating test error. 
@@ -1636,20 +1780,9 @@ Models will be selected and evaluated in the context of their use for
 forecasting rather than
 statistical inference. As such, we will use time series
 cross-validation (TSCV).
-TSCV consists of selecting a point or series of points
+@fpp3 define TSCV as selecting a point or series of points
 from the dataset as test sets, then selecting all prior points as the training
-set (@fpp3). Using the example in Figure F, the first iteration trains on the
-first 5 observations (blue) and generates forecasts on the next 3 observations 
-(green). In the second iteration the model trains on the first $5+3=8$
-observations and forecasts on the next 3 observations. This continues until
-the final iteration, where the model trains on all but the last 3 observations
-and then generates forecasts for the final 3 observations.
-In this example 5 is the initialization value (the number of training
-observations in the first iteration), 3 is the step size (the number of
-observations that are added to the training set each iteration), and 3 is also
-the horizon (the number of periods for which we generate a forecast).
-Each of the forecasts
-is then compared with actual (observed) values to evaluate the forecast.
+set.
 
 ```{r tscv-example, fig.height=2, fig.cap="Visualization of time series cross-validation example"}
 per <- 1:20
@@ -1675,6 +1808,20 @@ ggplot(df, aes(x = period, y = -iteration, label = type, color = type)) +
   theme(legend.position = "none",
         panel.grid.minor = element_blank())
 ```
+
+Using the example in Figure \ref{fig:tscv-example}, the first iteration trains on the
+first 5 observations (blue) and generates forecasts on the next 3 observations 
+(green). In the second iteration the model trains on the first $5+3=8$
+observations and forecasts on the next 3 observations. This continues until
+the final iteration, where the model trains on all but the last 3 observations
+and then generates forecasts for the final 3 observations.
+In this example 5 is the initialization value (the number of training
+observations in the first iteration), 3 is the step size (the number of
+observations that are added to the training set each iteration), and 3 is also
+the horizon (the number of periods for which we generate a forecast).
+Each of the forecasts
+is then compared with actual (observed) values to evaluate the forecast.
+
 
 ```{r test-set}
 bikets_test_stretched <- bikets %>%
@@ -1746,7 +1893,7 @@ tscv_info %>%
   bind_rows(slice(tscv_info, 24:25 )) %>%
   add_row() %>%
   bind_rows(slice_tail(tscv_info, n = 1)) %>%
-  knitr::kable(caption = "Train and test set (fold) details for the time series cross-validation process used to calculate estimated test error (MAE and RMSE).") %>%
+  mykable(caption = "Train and test set (fold) details for the time series cross-validation process used to calculate estimated test error (MAE and RMSE).") %>%
   kableExtra::column_spec(2:4, color = "#4974BF") %>%
   kableExtra::column_spec(5:7, color = "#007A25")
 ```
@@ -1777,15 +1924,19 @@ combined_acc <- bikets_test_stretched %>%
   accuracy(bikets, measures = point_accuracy_measures[c("MAE", "RMSE")]) %>%
   select(-.type)
 
-## Time Series
+# # Time Series
 # tsmodels_fc <- bikets_test_stretched %>%
 #   model(
 #     ARIMAfourierAuto =ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 5) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday),
 #     # ARIMAfourier212 =ARIMA(box_cox(BikeCount, l) ~ 0 + pdq(2,1,2) + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 5) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday),
 #     # ARIMAauto101510 = ARIMA(box_cox(BikeCount, l) ~ 0 + pdq(1,0,1) + PDQ(5,1,0) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday),
 #     ARIMAauto = ARIMA(box_cox(BikeCount, l) ~ pdq(p=0:12, q=0:12) + PDQ(P=0:12,Q=0:12) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday),
-#     prophetBasic = prophetBasic$prophet[[1]]$model
-#   ) %>% 
+#     arimaT2Precip = box_cox(BikeCount, l) ~ 1 + pdq(1, 0, 1) + PDQ(5, 1, 0) + Humidity + 
+#     Precipitation_Flag + SolarRadiation + Temperature + TSquare + 
+#     Visibility + WindSpeed + Seasons + Workday,
+    # prophetT2Precip = prophet(box_cox(BikeCount, l) ~ season(period = "day", type = "additive", order = 50, name = "day") + season(period = "week", type = "additive", order = 50, name = "week") + growth() + Workday + Humidity + Precipitation_Flag + SolarRadiation + Temperature + TSquare + Visibility + WindSpeed + Seasons),
+#     fassterFourierT2Precip = fasster(box_cox(BikeCount, l) ~ Workday %S% (fourier(24, 10) + fourier(27*7, 5) + trend(1)) + Humidity + Precipitation_Flag + SolarRadiation + Temperature + TSquare + Visibility + WindSpeed + Seasons)
+#   ) %>%
 #   forecast(new_data = fcst_new_data) %>%
 #   mutate(.pred = inv_box_cox(.mean, l))
 tsmodels_acc <- tsmodels_fc %>%
@@ -1797,10 +1948,13 @@ tsmodels_acc <- tsmodels_fc %>%
   mutate(.model = case_when(
     .model == "ARIMAfourier212" ~ "ARIMAX(2,1,2) w/ Fourier",
     .model == "ARIMAfourierAuto" ~ "auto ARIMAX w/ Fourier",
-    .model == "ARIMAauto101510" ~ "SARIMAX(1,0,1)(5,1,0)",
+    # .model == "ARIMAauto101510" ~ "SARIMAX(1,0,1)(5,1,0)",
+    .model == "arimaT2Precip" ~ "SARIMAX(1,0,1)(5,1,0)",
     .model == "ARIMAfourier212" ~ "auto ARIMAX w/ Fourier",
     .model == "ARIMAauto" ~ "auto SARIMAX",
-    .model == "prophetBasic" ~ "Prophet"
+    # .model == "prophetBasic" ~ "Prophet",
+    .model == "prophetT2Precip" ~ "Prophet",
+    .model == "fassterFourierT2Precip" ~ "fasster"
   ))
 
 
@@ -1838,9 +1992,9 @@ combined_acc <- combined_acc %>%
   rename(Model = .model)
 ```
 
-```{r accuracy-viz, fig.cap="Mean Absolute Error by Model", fig.height=3, fig.width=4, cache = FALSE, fig.scap="\\label{fig:mae-model}"}
+```{r accuracy-viz, fig.cap="Mean Absolute Error by Model", fig.height=3, fig.width=4, cache = FALSE}
 combined_acc %>%
-  knitr::kable(caption = "Test Error by Model Type", digits = 0, label = "error-by-model") %>%
+  mykable(caption = "Test Error by Model Type", digits = 0, label = "error-by-model") %>%
   kableExtra::pack_rows("Baseline",1,1) %>%
   kableExtra::pack_rows("Time Series Methods", 2, nrow(tsmodels_acc)+1) %>%
   kableExtra::pack_rows("Tree Methods", nrow(tsmodels_acc)+2, nrow(tsmodels_acc)+3) %>%
@@ -1875,19 +2029,16 @@ combined_acc %>%
   
 ```
 
-Table \ref{tab:error-by-model} and Figure \ref{fig:mae-model} report the MAE and RMSE for each model. Perhaps
+Table \ref{tab:error-by-model} and Figure \ref{fig:accuracy-viz} report the MAE and RMSE for each model. Perhaps
 unsurprisingly, the machine learning methods performed better than the
 time series methods, on average. The `r best_model` model
 performed the best (smallest MAE), with $MAE=$
 `r round(best_mae)` bikes demanded per hour. This was followed by
-`r model2` and `r model3`. Somewhat surprisingly, the Prophet time series model
-had the fourth-smallest MAE, outperforming the Random Forest (3 units). The 
+`r model2` and `r model3`. 
+The 
 baseline SNAIVE model outperformed both
 ARIMA-based models, which further reinforces the difficulty that ARIMA methods
 have with such high-frequency data.
 
 # Conclusion
 
-
-
-\newpage
