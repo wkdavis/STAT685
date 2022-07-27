@@ -1432,8 +1432,7 @@ model.add(Dropout(0.5))
 model.add(Dense(1))
 model.compile(loss='mae', optimizer='adam')
 # fit network
-history = model.fit(train_X, train_y, epochs=80, batch_size=50, 
-validation_data=(test_X, test_y), verbose=2, shuffle=False)
+history = model.fit(train_X, train_y, epochs=80, batch_size=50, validation_data=(test_X, test_y), verbose=2, shuffle=False)
 ```
 
 ```{python lag1-loss, fig.cap='Model loss - 1 hour lagged time steps as input', echo = FALSE, fig.height = 2, fig.width = 3, cache = FALSE}
@@ -1676,7 +1675,7 @@ smooth fashion fairly quickly.
 ```{python lag24-data-prep, echo = FALSE, cache = FALSE}
 # specify the number of lag hours  
 n_hours = 24 # use 24 hours of data as input
-n_features = 12
+n_features = 14
 
 # load dataset
 dataset = read_csv('SeoulBikeData2.csv', header=0, index_col=0)
