@@ -1414,13 +1414,14 @@ test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
 
 **Model Architecture**:
 
-1) LSTM with 50 neurons in the first visible layer
-2) Dropout 50%
-3) 1 neuron in the output layer for predicting Bike Demand.
-4) The input shape will be 1 time step with 12 features.
-5) I use the Mean Absolute Error (MAE) loss function and the efficient Adam
+1) LSTM with 64 neurons in the first visible layer
+2) LSTM with 32 neurons in the first visible layer
+3) Dropout 50%
+4) 1 neuron in the output layer for predicting Bike Rental Demand.
+5) The input shape will be 1 time step with 14 features.
+6) Used the Mean Absolute Error (MAE) loss function and the efficient Adam
 version of stochastic gradient descent.
-6) The model will be fit for 80 training epochs with a batch size of 12.
+7) The model will be fit for 80 training epochs with a batch size of 50.
 
 
 ```{python lag1-model, include = FALSE, cache = FALSE}
@@ -1573,12 +1574,14 @@ test_X = test_X.reshape((test_X.shape[0], n_hours, n_features))
 
 **Model Architecture**:
 
-1) LSTM with 50 neurons in the first visible layer
-2) Dropout 50%
-3) 1 neuron in the output layer for predicting Bike Demand.
-4) The input shape will be 12 time step with 12 features.
-5) I use the Mean Absolute Error (MAE) loss function and the efficient Adam version of stochastic gradient descent.
-6) The model will be fit for 60 training epochs with a batch size of 12.
+1) LSTM with 64 neurons in the first visible layer
+2) LSTM with 32 neurons in the first visible layer
+3) Dropout 50%
+4) 1 neuron in the output layer for predicting Bike Rental Demand.
+5) The input shape will be 12 time step with 14 features.
+6) Used the Mean Absolute Error (MAE) loss function and the efficient Adam
+version of stochastic gradient descent.
+7) The model will be fit for 80 training epochs with a batch size of 50.
 
 ```{python lag12-model, include = FALSE, cache = FALSE}
 # design network
@@ -1721,12 +1724,14 @@ test_X = test_X.reshape((test_X.shape[0], n_hours, n_features))
 
 **Model Architecture**:
 
-1) LSTM with 50 neurons in the first visible layer
-2) Dropout 50%
-3) 1 neuron in the output layer for predicting Bike Demand.
-4) The input shape will be 24 time step with 12 features.
-5) I use the Mean Absolute Error (MAE) loss function and the efficient Adam version of stochastic gradient descent.
-6) The model will be fit for 60 training epochs with a batch size of 12.
+1) LSTM with 64 neurons in the first visible layer
+2) LSTM with 32 neurons in the first visible layer
+3) Dropout 50%
+4) 1 neuron in the output layer for predicting Bike Rental Demand.
+5) The input shape will be 24 time step with 14 features.
+6) Used the Mean Absolute Error (MAE) loss function and the efficient Adam
+version of stochastic gradient descent.
+7) The model will be fit for 80 training epochs with a batch size of 50.
 
 ```{python lag24-model, include = FALSE, cache = FALSE}
 # design network 
