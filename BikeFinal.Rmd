@@ -5,6 +5,7 @@ author:
   - Max Kutschinski
   - Pei-Yin Yang
 date: "`r Sys.Date()`"
+abstract: City-wide bike sharing programs have gained in popularity among major cities in recent years, providing an attractive alternative to cars and other forms of transportation. A key factor in the program’s success is the efficient allocation of rental bikes across the city. This study aims to predict bike demand based on time differences by making hourly forecasts over a 24-hour horizon, enabling policymakers to get a better picture of the next day’s bike demand. We developed time series models, as well deep learning and tree-based models, and compared them using time series cross-validation with MAE as the evaluation criterion. The best performing model is based on the LSTM architecture, which yielded a test prediction Mean Absolute Error less than half that of the naïve baseline forecast. This study addresses the time-dependent aspect of bike demand, but further studies are needed to investigate spatial variations.
 output:
   pdf_document:
     citation_package: natbib
@@ -623,6 +624,10 @@ by the fourier terms).
 
 The R function `fable::ARIMA` is used to fit this model, which, as @arimamissing
 notes, handles missing values automatically using a Kalman filter.
+As a result of the missing values, the point (parameter) estimates will
+likey be biased. The use of covariates may capture some of the pattern in
+the missing data, if there is any, which would help to reduce the bias.
+However, the final point forecasts will likely still have some bias.
 
 ```{r arima-fourier, fig.height=4, fig.cap="Residuals for an ARIMAX(2,1,2) model with daily and weekly fourier terms"}
 # model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ(0,0,0) + fourier(24, 10) + fourier(24 * 7, 40) + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
@@ -759,7 +764,14 @@ One major benefit of (\ref{eq:prophet}) is that it is much faster to fit than
 a model with ARIMA terms. The downside is that it does not explicitly capture
 (non-seasonal) $AR(p)$ and $MA(q)$ terms. As @prophet note, because this is
 a curve-fitting exercise rather than a generative model, missing values do
-not need to be imputed. We will use
+not need to be manually imputed. Instead, the curves $g(t)$, $s_d(t,m)$, and
+$s_w(t,n)$ are fit to the raw data and then used to impute the missing values.
+Further, as with the ARIMA model, the presence of the covariates helps to
+control for any missingness that might be related to one of the covariates.
+However, the missing value interpolation will still result in biased parameter
+estimates for the model.
+
+We will use
 `prophet` from @fableprophet's package `fable.prophet` to train the model in `R`.
 The `R`
 function sets a number of desirable default parameter values as
@@ -912,7 +924,7 @@ capturing all of the autocorrelation in the data: the strength of the
 correlation appears to be a non-linear function of time.
 One reason for this
 shape in the PACF plot could be the presence of switching seasonality. More
-specifically, it's possible that the seasonality (not just the series itself)
+specifically, it's possible that the seasonality effects (not just the series itself)
 is different on working days and non-working days. A
 hand-wavy analysis would say that, given there are seven days in a
 week, any single day is, on "average", $7/2=3.5$ days away from any other day.
@@ -924,7 +936,9 @@ resulting in lower correlation than when weekdays are compared with other
 weekdays, which would occur most frequently at lags $<3$ and $>4$. This is
 certainly not a technical explanation of the pattern, but it is plausible. The
 previously employed techniques (SARIMAX and Prophet) don't allow for changing
-seasonality. @fasster's fasster methodology allows for the seasonal (and trend)
+seasonality.
+
+@fasster's fasster methodology allows for the seasonal (and trend)
 component(s) of the model to be switched based on the "state" of a given
 observation, which is defined via a discrete variable passed to the model. In
 our case, this variable would be *Workday*, which identifies the observation
@@ -935,7 +949,10 @@ which simply include the *Workday* variable as a regression coefficient,
 reducing its effect to a shift in the level of the series. Like some of the
 previous methods, fasster uses fourier terms to capture seasonality. We will
 use 10 and 5 $\sin$-$\cos$ for the daily and weekly seasonality, respectively,
-based on the recommendation of @fpp3.
+based on the recommendation of @fpp3. Finally, as with the other time-series
+methods, fasster uses Kalman filtering and smoothing to interpolate missing
+values, which will result in biased parameter estimates, though the bias will
+be less than that from a model fit by excluding the missing values.
 
 ```{r fasster, fig.cap="Residual correlograms from the fasster model.", fig.height=2}
 library(fasster)
@@ -1151,10 +1168,8 @@ Long Short-Term Memory (LSTM) network over other recurrent networks comes
 from "constant error back propagation",
 an improved method of back-propagating the error.
 
-```{r LSTM pic, echo=FALSE, out.width = '80%'}
+```{r LSTM note, echo=FALSE, fig.cap="The repeating module in an LSTM contains four interaction layers. Images borrowed from @colah's blog.", out.width = '80%'}
 knitr::include_graphics("LSTM-chain.png")
-```
-```{r LSTM note, echo=FALSE, fig.cap="The repeating module in an LSTM contains four interaction layers. Images borrowed from colah's blog.",out.width = '80%'}
 knitr::include_graphics("LSTM2-notation.png")
 ```
 
@@ -1162,23 +1177,21 @@ The key to LSTMs is the cell state, the horizontal line running through the top 
 
 Let $X_{t}$ be the input and $h_{t}$ be the output at time t. At time t, the equation of gates, input and output of the LSTM cell are as follows:
 
-$i_{t}=\sigma(W_{i}[x_{t}]+R_{i}[h_{t-1}]+b_{i})$
+\begin{align}
+i_{t}&=\sigma(W_{i}[x_{t}]+R_{i}[h_{t-1}]+b_{i})\\
+f_{t}&=\sigma(W_{f}[x_{t}]+R_{f}[h_{t-1}]+b_{f})\\
+o_{t}&=\sigma(W_{o}[x_{t}]+R_{o}[h_{t-1}]+b_{o})\\
+g_{t}&=\tanh(W_{x}[x_{t}]+R_{x}[h_{t-1}]+b_{x})\\
+h_{t}&=o_{t}\times \tanh(c_{t})
+\end{align}
 
-$f_{t}=\sigma(W_{f}[x_{t}]+R_{f}[h_{t-1}]+b_{f})$
-
-$o_{t}=\sigma(W_{o}[x_{t}]+R_{o}[h_{t-1}]+b_{o})$
-
-$g_{t}=tanh(W_{x}[x_{t}]+R_{x}[h_{t-1}]+b_{x})$
-
-$h_{t}=o_{t}\times tanh(c_{t})$
-
-where $i_{t}$, $f_{t}$, $o_{t}$ denotes input gate, forget gate and output gate respectively. The $g_{t}$ and $h_{t}$ refer to input and output of the LSTM cell respectively and $h_{t-1}$ refers to the output of the previous LSTM cell. Sigmoid ($\sigma$) and $tanh$ are the activation functions to map the non-linearity.
+where $i_{t}$, $f_{t}$, $o_{t}$ denotes input gate, forget gate and output gate respectively. The $g_{t}$ and $h_{t}$ refer to input and output of the LSTM cell respectively, and $h_{t-1}$ refers to the output of the previous LSTM cell. Sigmoid ($\sigma$) and $tanh$ are the activation functions to map the non-linearity.
 
 $c_{t}$ represents the Constant Error Carousel (CEC), the magic of the LSTM as it prevents vanishing gradients, it defines the memory cell to store the past state. It is denoted as follows:
 
-$$
+\begin{equation}
 c_{t}=c_{t-1} \times \text{forget gate} + \text{new input} \times \text{input gate}
-$$
+\end{equation}
 
 In the case of regular RNNs during backpropagation, the derivative of an
 activation function, such as a logistic, will be less than one. Therefore over
@@ -1203,9 +1216,9 @@ data. Here, by using the `scikit-learn` object
 to the range $[0,1]$, which is the range for floating-point values where we
 have the most precision. A value is normalized as follows:
 
-$$
+\begin{equation}
 y = \frac{x-\min\{x\}}{\max\{x\}-\min\{x\}}
-$$
+\end{equation}
 
 ```{r python setup, include=FALSE}
 library(reticulate)
