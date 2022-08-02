@@ -11,6 +11,8 @@ output:
     extra_dependencies: ["amsmath", "float", "booktabs"]
     keep_tex: true
     fig_caption: yes
+    includes:
+      in_header: preamble.tex
 bibliography: citations.bib
 editor_options: 
   chunk_output_type: console
