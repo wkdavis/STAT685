@@ -237,7 +237,7 @@ The dataset consists of `r scales::comma(nrow(bikets))` hourly observations of
 `r sum(is.na(bikets$BikeCount))` observations where *BikeCount*=0 due to the
 bikeshare system not functioning. There are no other periods where
 *BikeCount*=0. Table \ref{tab:var-defs} contains information on the variables in
-the dataset, including the 
+the dataset, including the variable type.
 
 ## Bike Count
 
@@ -1050,6 +1050,8 @@ ncol = 2)
 
 ## Machine Learning
 
+### Tree Methods
+
 ```{r FE, echo = F, eval = FALSE}
 ## Feature Engineering
 
@@ -1090,7 +1092,7 @@ XFull = XFull %>%
   predict(newdata = XFull)
 ```
 
-### Random Forests
+#### Random Forests
 
 Random forests is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing $B$ unpruned trees from $B$ bootstrap samples and averaging the predictions $\hat{f}$ as displayed in Eq. (\ref{eq:rf}).
 \begin{equation}
@@ -1124,7 +1126,7 @@ rfOut = train(XFull[1:cv_n,] , bike$BikeCount[1:cv_n],
 
 The hyperparameters of our model are evaluated using TSCV, yielding an optimal *mtry* value of 53. @probst suggests that such a high value is usually indicative of a high number of relevant predictors.
 
-### XGBoost 
+#### XGBoost 
 
 XGBoost is an advanced implementation of Gradient Boosting, which is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
 
