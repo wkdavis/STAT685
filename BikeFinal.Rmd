@@ -426,8 +426,7 @@ Dewpoint and Solar Radiation follow a predictable pattern that mirrors
 temperature throughout the year, with an upward trend peaking in the summer
 months and a downward trend that hits a trough in the winter months. Humidity, 
 visibility, and Wind Speed appear to have less of a trend throughout the year.
-Precipitation (rainfall and 
-) appears to have a much more random
+Precipitation (rainfall and snowfall) appears to have a much more random
 pattern throughout the year, with a large number of periods having no
 precipitation. Depending on the predictive performance of the raw continuous
 precipitation features, it may prove more performant to convert them to
