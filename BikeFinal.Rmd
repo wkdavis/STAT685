@@ -5,7 +5,7 @@ author:
   - Max Kutschinski
   - Pei-Yin Yang
 date: "`r Sys.Date()`"
-abstract: City-wide bike sharing programs have gained in popularity among major cities in recent years, providing an attractive alternative to cars and other forms of transportation. A key factor in the program’s success is the efficient allocation of rental bikes across the city. This study aims to predict bike demand based on time differences by making hourly forecasts over a 24-hour horizon, enabling policymakers to get a better picture of the next day’s bike demand. We developed time series models, as well deep learning and tree-based models, and compared them using time series cross-validation with MAE as the evaluation criterion. The best performing model is based on the LSTM architecture, which yielded a test prediction Mean Absolute Error less than half that of the naïve baseline forecast. This study addresses the time-dependent aspect of bike demand, but further studies are needed to investigate spatial variations.
+abstract: City-wide bike sharing programs have gained in popularity among major cities in recent years, providing an attractive alternative to cars and other forms of transportation. A key factor in the program’s success is the efficient allocation of rental bikes across the city. This study aims to predict bike demand based on time differences by making hourly forecasts over a 24-hour horizon, enabling policymakers to get a better picture of the next day’s bike demand. We developed time series models, as well as deep learning and tree-based models, and compared them using time series cross-validation with Mean Absolute Error (MAE) as the evaluation criterion. The best performing model is based on the LSTM architecture, which yielded a test prediction MAE less than half that of the naïve baseline forecast. This study addresses the time-dependent aspect of bike demand, but further studies are needed to investigate spatial variations.
 output:
   pdf_document:
     citation_package: natbib
@@ -139,14 +139,14 @@ of rules, performed best on the Seoul data when measured by $R^2$ and RMSE on
 the testing dataset. @gao found that another tree-based
 method, random forest (RF), performed best on a similar bikeshare dataset when
 measured by $R^2$ and RMSE. Both studies further showed
-that weather-related variables, such as temperatures and precipitation, where
+that weather-related variables, such as temperatures and precipitation, were
 among the most important for predicting demand. Gao and Chen's results
 highlight the importance of selecting a relevant evaluation metric and explanatory
 variables. When socioeconomic variables were included in the model, the
 RF outperformed the support vector machine (SVM) when measured by both
 RMSE and MAE. However, when the socioeconomic variables were excluded from the
 model, the RF outperformed the SVM when measured by RMSE, but the SVM
-performed better when measured by MAE This indicates that without the
+performed better when measured by MAE. This indicates that without the
 socioeconomic variables included, the SVM was prone to a few errors that were
 quite large in magnitude, while the RF was more prone to smaller but more
 frequent errors. This reinforces the importance of using multiple metrics when
@@ -258,11 +258,11 @@ appropriate.
 
 Figure \ref{fig:timeplot} highlights the incredible variation in demand over time.
 The variance in demand appears to increase during the summer months and then
-decrease again in the autumn. This heteroskedasticity violates the constant
+decrease again in the autumn. This heteroscedasticity violates the constant
 variance assumption of ordinary least squares regression and will have to be
 corrected if regression-based methods are to be used. We can also see that the
 mean of the series appears to increase during the summer months before decreasing
-again in the autumn.
+again in the fall.
 
 ```{r ts-tests}
 tstests <- features(bikets, BikeCount, c(unitroot_kpss,
@@ -311,7 +311,7 @@ sharply in the morning, presumably during the morning commute, before decreasing
 into the lunchtime hour. From there, demand rises steadily through the evening
 commute before peaking around dinner time and then falling through the
 nighttime hours. Variability also appears greater during the evening hours,
-which is consistent with the idea heteroscedasticity; the variance increases
+which is consistent with the idea of heteroscedasticity; the variance increases
 with the level of the series. Demand appears slightly higher during 
 workdays (where workdays are weekdays that are not holidays) and weekdays,
 though the difference does not appear particularly large. There are a number
@@ -383,7 +383,7 @@ newpage = FALSE)
 Figure \ref{fig:seasonality-weekends} provides insight into the seasonality of the bike demand. Each panel
 is a 4-week sample of hourly bike demand, with non-workdays (weekends and
 holidays) highlighted in red. While these days appear to follow a consistent
-hourly pattern much like the workdays, we can see that their is a difference
+hourly pattern much like the workdays, we can see that there is a difference
 between the seasonality of workdays and the seasonality of non-workdays. Most
 notably, the troughs in demand appear consistent between the types of days
 while the peaks are consistently higher for workdays as compared to
@@ -684,7 +684,7 @@ Finally, we will test a SARIMAX model that makes use of two derived
 variables. First, as was seen in Figure \ref{fig:corrplot}, there appears to
 be a higher-order relationship between temperature and bike count. Therefore,
 we will add a $\text{Temperature}^2$ term to the model. Additionally, as can
-be seen in \ref{fig:covariate-timeplot}, Rainfall and Snowfall are both
+be seen in Figure \ref{fig:covariate-timeplot}, Rainfall and Snowfall are both
 continuous variables that have a large number of zero values. We believe it is
 a reasonable assumption that the presence or absence of Rainfall or Snowfall
 will have the largest impact on the bike count, and the quantity of rain or snow
@@ -731,8 +731,8 @@ AICc from `r paste(round(arima_ic_comp$AICc), collapse = " to ")`,
 and BIC from `r paste(round(arima_ic_comp$BIC), collapse = " to ")`, when
 compared with the model from Figure \ref{fig:auto-sarima}. Therefore
 the addition of these two variables has helped improve the model fit. 
-Unfortunately, as \ref{fig:auto-sarima-poly} shows there is still
-statistically significant autocorrelation in the residuals
+Unfortunately, Figure \ref{fig:auto-sarima-poly} shows that there is still
+statistically significant autocorrelation in the residuals.
 It is possible that the
 seasonal patterns in the data are too complex or too high frequency to be
 captured by an ARIMA, ARIMAX, or SARIMAX model. As a result of the residual
@@ -1050,8 +1050,6 @@ ncol = 2)
 
 ## Machine Learning
 
-### Tree Methods
-
 ```{r FE, echo = F, eval = FALSE}
 ## Feature Engineering
 
@@ -1092,7 +1090,7 @@ XFull = XFull %>%
   predict(newdata = XFull)
 ```
 
-#### Random Forests
+### Random Forests
 
 Random forests is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing $B$ unpruned trees from $B$ bootstrap samples and averaging the predictions $\hat{f}$ as displayed in Eq. (\ref{eq:rf}).
 \begin{equation}
@@ -1126,7 +1124,7 @@ rfOut = train(XFull[1:cv_n,] , bike$BikeCount[1:cv_n],
 
 The hyperparameters of our model are evaluated using TSCV, yielding an optimal *mtry* value of 53. @probst suggests that such a high value is usually indicative of a high number of relevant predictors.
 
-#### XGBoost 
+### XGBoost 
 
 XGBoost is an advanced implementation of Gradient Boosting, which is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
 
@@ -1886,7 +1884,7 @@ metric. According to @fpp3, using MAE will result in
 forecasts of the median while RMSE results in forecasts of the mean.
 Because our data appear skewed, the median is a more appropriate measure
 of center. Therefore,
-MAE is the best error metric for selecting the best forecasting model and
+MAE is the preferred error metric for selecting the best forecasting model and
 estimating test error. 
 
 For the purposes of discussing model error rate, let $y_t$ be the
