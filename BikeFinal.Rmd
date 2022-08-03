@@ -944,15 +944,40 @@ observation, which is defined via a discrete variable passed to the model. In
 our case, this variable would be *Workday*, which identifies the observation
 as a workday or non-workday (weekend or holiday). Different seasonality
 coefficients can then be fit based on whether a bike count is observed on
-a workday or non-workday. This is an improvement over the previous models,
+a workday or non-workday. Equations \ref{eq:fasster-obs} and
+\ref{eq:fasster-state} from
+@fasstereqns describe the two functions that support this methodology.
+The terms $F_t$ and $G$ operate together to allow for different hourly seasonality
+components for workdays and non-workdays. For example, the effect
+(coefficient) of the 8:00AM hour can be different for a workday and a
+non-workday.
+This is an improvement over the previous models,
 which simply include the *Workday* variable as a regression coefficient,
 reducing its effect to a shift in the level of the series. Like some of the
 previous methods, fasster uses fourier terms to capture seasonality. We will
 use 10 and 5 $\sin$-$\cos$ for the daily and weekly seasonality, respectively,
-based on the recommendation of @fpp3. Finally, as with the other time-series
+based on the recommendation of @fpp3. 
+
+\begin{align}
+\label{eq:fasster-obs}
+y_t&=F_t\theta_t+v_t,&&v_t\sim N(0,V)\\
+\label{eq:fasster-state}
+\theta_t&=G\theta_{t-1}+w_t,&&w_t\sim N(0,W)
+\end{align}
+
+where:
+
+* $y_t$ is the bike demand at time $t$
+* $\theta_t$ are the underlying states at time $t$
+* $F_t$ are the coefficients at time $t$ for (linearly) combining the states to
+produce the response at time $t$ ($y_t$)
+* $G$ is a matrix that defines the behavior of each state (season, trend, level,
+etc)
+* $v_t$ and $w_t$ are normally distributed random noise with mean 0.
+
+Finally, as with the other time-series
 methods, fasster uses Kalman filtering and smoothing to interpolate missing
-values, which will result in biased parameter estimates, though the bias will
-be less than that from a model fit by excluding the missing values.
+values, which will result in biased parameter estimates.
 
 ```{r fasster, fig.cap="Residual correlograms from the fasster model.", fig.height=2}
 library(fasster)
