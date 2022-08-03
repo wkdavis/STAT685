@@ -5,7 +5,7 @@ author:
   - Max Kutschinski
   - Pei-Yin Yang
 date: "`r Sys.Date()`"
-abstract: City-wide bike sharing programs have gained in popularity among major cities in recent years, providing an attractive alternative to cars and other forms of transportation. A key factor in the program’s success is the efficient allocation of rental bikes across the city. This study aims to predict bike demand based on time differences by making hourly forecasts over a 24-hour horizon, enabling policymakers to get a better picture of the next day’s bike demand. We developed time series models, as well as deep learning and tree-based models, and compared them using time series cross-validation with Mean Absolute Error (MAE) as the evaluation criterion. The best performing model is based on the LSTM architecture, which yielded a test prediction MAE less than half that of the naïve baseline forecast. This study addresses the time-dependent aspect of bike demand, but further studies are needed to investigate spatial variations.
+abstract: City-wide bike sharing programs have gained in popularity among major cities in recent years, providing an attractive alternative to cars and other forms of transportation. A key factor in the program’s success is the efficient allocation of rental bikes across the city. This study aims to predict bike demand based on time differences by making hourly forecasts over a 24-hour horizon, enabling policymakers to get a better picture of the next day’s bike demand. We developed time series models, as well as deep learning and tree-based models, and compared them using time series cross-validation with Mean Absolute Error (MAE) as the evaluation criterion. The best-performing model is based on the LSTM architecture, which yielded a test prediction MAE less than half that of the naïve baseline forecast. This study addresses the time-dependent aspect of bike demand, but further studies are needed to investigate spatial variations.
 output:
   pdf_document:
     citation_package: natbib
@@ -106,7 +106,7 @@ be effective. In order to efficiently allocate bikes,
 @schuijbroek suggest administrators can
 periodically transport bikes from areas of low demand to areas of high demand.
 Demand in a bikeshare system is a function of both time
-and location. In this paper we focus on the time component of
+and location. In this paper, we focus on the time component of
 the demand for bicycles at each hour of the day, ignoring the spatial
 component of demand. We will use the Seoul Bike Sharing Demand data from
 @bikedata. Our focus will be limited to predicting demand at each hour
@@ -251,7 +251,7 @@ biketimeplots
 
 The data shows increasing demand and variability during the summer months. The
 bike demand data are counts, meaning they are technically discrete. Based on
-the histogram and the count nature of the data, it appears that a poisson
+the histogram and the count nature of the data, it appears that a Poisson
 distribution would be most appropriate for the data. If we were to model the
 bike demand on a continuous scale, a log-normal distribution might be
 appropriate.
@@ -424,9 +424,10 @@ covariates appear to be typical time series data with varying degrees of
 trend, seasonality, cyclicality, autocorrelation, and heteroskedasticity.
 Dewpoint and Solar Radiation follow a predictable pattern that mirrors
 temperature throughout the year, with an upward trend peaking in the summer
-months and downward trend that hits a trough in the winter months. Humidity, 
+months and a downward trend that hits a trough in the winter months. Humidity, 
 visibility, and Wind Speed appear to have less of a trend throughout the year.
-Precipitation (rainfall and snowfall) appears to have a much more random
+Precipitation (rainfall and 
+) appears to have a much more random
 pattern throughout the year, with a large number of periods having no
 precipitation. Depending on the predictive performance of the raw continuous
 precipitation features, it may prove more performant to convert them to
@@ -469,7 +470,7 @@ might better represent this relationship. However, there is significant
 multicollinearity between temperature and dewpoint ($\rho=0.913$), so
 additional analysis will be required to isolate the effect of each variable.
 Finally, we can see that a number of the covariates, such as wind speed,
-visibility, solar radiation, rainfall, and snowfall all appear to follow
+visibility, solar radiation, rainfall, and snowfall, all appear to follow
 non-normal distributions. As such, their relationship to bike count might be
 best represented with a higher-order polynomial or other non-linear
 relationship.
@@ -625,7 +626,7 @@ by the fourier terms).
 The R function `fable::ARIMA` is used to fit this model, which, as @arimamissing
 notes, handles missing values automatically using a Kalman filter.
 As a result of the missing values, the point (parameter) estimates will
-likey be biased. The use of covariates may capture some of the pattern in
+likely be biased. The use of covariates may capture some of the patterns in
 the missing data, if there is any, which would help to reduce the bias.
 However, the final point forecasts will likely still have some bias.
 
@@ -657,7 +658,7 @@ the model should not be used for inference. The goal of this analysis is to
 generate accurate (point) forecasts, which are still valid even when the errors
 exhibit autocorrelation.
 
-Next we will fit a linear regression with SARIMA errors to the data where
+Next, we will fit a linear regression with SARIMA errors to the data where
 all parameters
 $p,d,q,P,D,Q$ are chosen automatically using `fable::ARIMA`, which relies on
 the algorithm developed by @autoarima. This resulted in the selection of an
@@ -1007,7 +1008,7 @@ ncol = 2)
 ```
 
 As with all of the other time-series models, fasster is not able to capture
-the autogression in the series, resulting in significantly autocorrelated
+the autoregression in the series, resulting in significantly autocorrelated
 errors. Therefore, point forecasts from the fasster model are valid, but
 inference may not be conducted with the model due to the impact of the
 autocorrelation on the covariance structure of the model.
@@ -1357,6 +1358,22 @@ from keras.layers import LSTM
 from keras.layers.convolutional import Conv1D
 from keras.layers.convolutional import MaxPooling1D
 from keras.layers import Dropout
+## Solve randomness of LSTM results
+from __future__ import print_function
+from numpy.random import seed
+import random
+import tensorflow.compat.v1 as tf
+
+import os
+os.environ['PYTHONHASHSEED'] = '0'
+seed(42)
+random.seed(12345)
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+
+from keras import backend as K
+tf.set_random_seed(1234)
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
 ```
 
 ```{r create-csv-for-python}
@@ -1871,7 +1888,7 @@ lstmplot(history, inv_y, inv_yhat, 'Lag 24')
 
 ## Error
 
-Given our stated use for these models is forecasting (prediction), when
+Given that our stated use for these models is forecasting (prediction), when
 discussing model evaluation we must first define the notion of forecast
 (prediction) error rate.
 @fcacc define a number of different metrics to use for forecast error, each
@@ -1983,7 +2000,7 @@ train50 <- range(bikets_test_stretched$Hour[bikets_test_stretched$fold==50])
 test50 <- range(fcst_new_data$Hour[fcst_new_data$fold==50])
 ```
 
-Our evaluation will use use the last 50 days of data as the test folds, with
+Our evaluation will use the last 50 days of data as the test folds, with
 each test fold having 24 observations. The
 first iteration will train on the `r sum(bikets_test_stretched$fold==1)`
 observations from `r paste(train1, collapse = " to ")` and test (forecast) on the
@@ -2042,7 +2059,7 @@ period.
 Given hourly data, a common-sense baseline is to predict the bike demand at
 time $t$ to be equal to the bike demand at time $t-24$, the same hour the
 previous day. In the time series
-paradigm this is known as a Seasonal NAIVE (SNAIVE) model.
+paradigm, this is known as a Seasonal NAIVE (SNAIVE) model.
 
 
 \begin{equation} 
