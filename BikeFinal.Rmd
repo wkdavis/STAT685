@@ -567,7 +567,7 @@ where:
 * $\theta(B)$ are the $q$ moving average components
 * $w_t\sim\text{ iid }N(0,\sigma_w^2)$ is the traditional Gaussian white noise
 
-as degined by @shumway. SARIMA models of this form are often written
+as defined by @shumway. SARIMA models of this form are often written
 $ARIMA(p,d,q)\times(P,D,Q)_S$. A KPSS test indicates that the data is
 non-stationary and requires $D=1$ seasonal difference.
 Autocorrelation and partial
@@ -2167,8 +2167,7 @@ time series methods, on average. The `r best_model` model
 performed the best (smallest MAE), with $MAE=$
 `r round(best_mae)` bikes demanded per hour. This was followed by
 `r model2` and `r model3`. 
-The 
-baseline SNAIVE model outperformed both
+The baseline SNAIVE model outperformed the
 ARIMA-based models, which further reinforces the difficulty that ARIMA methods
 have with such high-frequency data.
 
