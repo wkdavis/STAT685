@@ -528,12 +528,13 @@ where $\lambda=$ `r l` was selected using @guerrero's method.
 Traditional linear regression models can be adapted to handle the autocovariance
 structure of time series by assuming that the errors follow a seasonal ARIMA 
 (SARIMA) process
-instead of the traditional $\epsilon\sim\text{iid }N(0,\sigma^2)$. This results
+instead of the traditional iid normal distribution with mean 0 and constant
+variance. This results
 in the modified regression equation
 
 \begin{equation}
 \label{eq:ols}
-y_t=\beta_0+\sum_{j=1}^k\beta_jz_{jt}+x_t
+y_t=\beta_0+\sum_{j=1}^k\beta_jz_{jt}+\epsilon_t
 \end{equation}
 
 where:
@@ -543,7 +544,7 @@ where:
 * $z_{1t},\dots,z_{kt}$ are the $k$ exogenous regressors observed at
 time $t$.
 * $\beta_1,\dots,\beta_k$ are the regression coefficients.
-* $x_t$ are the regression errors, which are assumed to follow an SARIMA process
+* $\epsilon_t$ are the regression errors, which are assumed to follow an SARIMA process
 as in (\ref{eq:sarima}).
 
 (\ref{eq:ols}) is often referred to as SARIMAX for
@@ -551,7 +552,7 @@ Seasonal ARIMA with eXogenous regressors.
 
 \begin{equation}
 \label{eq:sarima}
-\Phi_P(B^S)\phi(B)\nabla_S^D\nabla^dx_t=\Theta_Q(B^S)\theta(B)w_t
+\Phi_P(B^S)\phi(B)\nabla_S^D\nabla^d\epsilon_t=\Theta_Q(B^S)\theta(B)w_t
 \end{equation}
 
 where:
@@ -563,6 +564,7 @@ where:
 * $\Theta_Q(B^S)$ are the $Q$ seasonal moving average components
 * $\theta(B)$ are the $q$ moving average components
 * $w_t\sim\text{ iid }N(0,\sigma_w^2)$ is the traditional Gaussian white noise
+* $\epsilon_t$ are the errors from \ref{eq:ols}.
 
 as defined by @shumway. SARIMA models of this form are often written
 $ARIMA(p,d,q)\times(P,D,Q)_S$. A KPSS test indicates that the data is
@@ -570,16 +572,16 @@ non-stationary and requires $D=1$ seasonal difference.
 Autocorrelation and partial
 autocorrelation plots can be used to determine the ARIMA order.
 
-```{r acf, fig.cap="Correlograms for $\\nabla_Sy_t$", fig.height=2}
+```{r acf, fig.cap="Correlograms for $\\nabla^{24}y_t$", fig.height=2}
 grid.arrange(
 bikets_cv %>%
   mutate(BikeCount = difference(box_cox(BikeCount, l), lag = 24)) %>%
   ACF(BikeCount, lag_max = 24*7) %>%
-  autoplot() + labs(title = expression(paste("ACF of ", nabla[S]*y[t]))) + theme(axis.title.y = element_blank(), axis.text.x = element_text(size = 5)),
+  autoplot() + labs(title = expression(paste("ACF of ", nabla^24*y[t]))) + theme(axis.title.y = element_blank(), axis.text.x = element_text(size = 5)),
 bikets_cv %>%
   mutate(BikeCount = difference(box_cox(BikeCount, l), lag = 24)) %>%
   PACF(BikeCount, lag_max = 24*7) %>%
-  autoplot()+ labs(title = expression(paste("PACF of ", nabla[S]*y[t]))) + theme(axis.title.y = element_blank(), axis.text.x = element_text(size = 5)),
+  autoplot()+ labs(title = expression(paste("PACF of ", nabla^24*y[t]))) + theme(axis.title.y = element_blank(), axis.text.x = element_text(size = 5)),
 ncol = 2)
 ```
 
@@ -601,20 +603,22 @@ Introducing the fourier terms will result in a model of the form
 
 \begin{align}
 \label{eq:arimafourier}
-y_t&=\beta_0+\sum_{j=1}^k\beta_jz_{jt}+s_d(t,m)+s_w(t,n)+x_t\\
+y_t&=\beta_0+\sum_{j=1}^k\beta_jz_{jt}+s_d(t,m)+s_w(t,n)+\epsilon_t\\
 \label{eq:fourierday}
-s_d(t,m)&=\sum_{i=1}^m\left[\alpha_i\sin\left(\frac{2\pi it}{24}\right)+\beta_i\cos\left(\frac{2\pi it}{24}\right)\right]\\
+s_d(t,m)&=\sum_{i=1}^m\left[\alpha_i\sin\left(\frac{2\pi it}{24}\right)+\eta_i\cos\left(\frac{2\pi it}{24}\right)\right]\\
 \label{eq:fourierweek}
-s_w(t,n)&=\sum_{l=1}^n\left[\gamma_l\sin\left(\frac{2\pi lt}{168}\right)+\delta_l\cos\left(\frac{2\pi lt}{168}\right)\right]
+s_w(t,n)&=\sum_{l=1}^n\left[\nu_l\sin\left(\frac{2\pi lt}{168}\right)+\delta_l\cos\left(\frac{2\pi lt}{168}\right)\right]
 \end{align}
 
 where:
 
 * $\beta_0+\sum_{j=1}^k\beta_jz_{jt}$ are the intercept, independent variables
-and their coefficients, as defined in (\ref{eq:ols})
-* $s_d(t,m)$ are the $m$ daily seasonality fourier terms
-* $s_w(t,n)$ are the $n$ weekly seasonality fourier terms
-* $x_t$ are the model errors, which are assumed to follow a $ARIMA(p,d,q)$
+and their coefficients, as defined in (\ref{eq:ols}).
+* $s_d(t,m)$ are the $m$ daily seasonality fourier terms with coefficients
+$\alpha$ and $\eta$.
+* $s_w(t,n)$ are the $n$ weekly seasonality fourier terms with coefficients
+$\nu$ and $\delta$.
+* $\epsilon_t$ are the model errors, which are assumed to follow a $ARIMA(p,d,q)$
 process (note that in contrast to (\ref{eq:ols}) this is a non-seasonal ARIMA
 model; the seasonality is omitted from the ARIMA process because it is captured
 by the fourier terms).
@@ -772,13 +776,11 @@ We will use
 `prophet` from @fableprophet's package `fable.prophet` to train the model in `R`.
 The `R`
 function sets a number of desirable default parameter values as
-recommended by @prophet. In order to properly tune the model to our dataset
-we will use TSCV (see [Model Selection and Test Error](#Model-Selection-and-Test-Error)) to select $m$ and $n$. The TSCV will
-consist of 63 folds/time-slices. We will search over the parameter space
-$m\in\{1, 2, 5, 10, 20, 50\}$ and $n\in\{3, 5, 10, 20, 50\}$, giving us
-$6\times5=30$ possible parameter combinations.
+recommended by @prophet. We will test a number of different parameter combinations,
+$m\in\{1, 2, 5, 10, 20, 50\}$ and $n\in\{3, 5, 10, 20, 50\}$, to see which
+combination provides the best model (smallest error).
 
-```{r prophet-cv, fig.cap="Cross-validated MAE for Prophet models with various numbers of (daily and weekly) fourier terms", fig.height=3, fig.width=3}
+```{r prophet-cv, fig.cap="MAE for Prophet models with various numbers of (daily and weekly) fourier terms", fig.height=3, fig.width=3}
 holidays <- bikets_cv %>%
   filter(Holiday == "Holiday") %>%
   mutate(ds = as.Date(Hour)) %>%
@@ -956,20 +958,20 @@ based on the recommendation of @fpp3.
 
 \begin{align}
 \label{eq:fasster-obs}
-y_t&=F_t\theta_t+v_t,&&v_t\sim N(0,V)\\
+y_t&=E_t\rho_t+v_t,&&v_t\sim N(0,V)\\
 \label{eq:fasster-state}
-\theta_t&=G\theta_{t-1}+w_t,&&w_t\sim N(0,W)
+\rho_t&=G\rho_{t-1}+\omega_t,&&\omega_t\sim N(0,\Omega)
 \end{align}
 
 where:
 
 * $y_t$ is the bike demand at time $t$
-* $\theta_t$ are the underlying states at time $t$
-* $F_t$ are the coefficients at time $t$ for (linearly) combining the states to
+* $\rho_t$ are the underlying states at time $t$
+* $E_t$ are the coefficients at time $t$ for (linearly) combining the states to
 produce the response at time $t$ ($y_t$)
 * $G$ is a matrix that defines the behavior of each state (season, trend, level,
 etc)
-* $v_t$ and $w_t$ are normally distributed random noise with mean 0.
+* $v_t$ and $\omega_t$ are normally distributed random noise with mean 0.
 
 Finally, as with the other time-series
 methods, fasster uses Kalman filtering and smoothing to interpolate missing
@@ -1090,14 +1092,14 @@ XFull = XFull %>%
 
 #### Random Forests
 
-Random forests is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing $B$ unpruned trees from $B$ bootstrap samples and averaging the predictions $\hat{f}$ as displayed in Eq. (\ref{eq:rf}).
+Random forests is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing $K$ unpruned trees from $K$ bootstrap samples and averaging the predictions $\hat{f}$ as displayed in Eq. (\ref{eq:rf}).
 \begin{equation}
   \label{eq:rf}
-  \hat{f}_{bag}(x)=\frac{1}{B}\sum_{b=1}^{B}\hat{f^{*b}}(x)
+  \hat{f}_{bag}(x)=\frac{1}{K}\sum_{\kappa=1}^{K}\hat{f^{*\kappa}}(x)
 \end{equation}
 One notable drawback of bagging is that the individual trees can be very correlated depending on how strong the predictors are. Random forests address this issue by randomly selecting a subset of the features at each split and thus de-correlating the trees.
 
-Random Forests (RF) is implemented using the ranger package for increased computational speed. @JMLRdelgado14a notes that RF is an algorithm known to provide good results in the default settings. The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features available at each split. In the regression case, p/3 is the default setting. When executing ranger via caret, it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
+Random Forests (RF) is implemented using the ranger package for increased computational speed. @JMLRdelgado14a notes that RF is an algorithm known to provide good results in the default settings. The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features available at each split. In the regression case, `mtry=k/3` is the default setting, where k is the number of predictors. When executing ranger via caret, it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
 
 ```{r rf, echo=F, warning=F, message=F, error=F, include=F, eval = FALSE}
 cv_n <- nrow(bike)-(24*50)
@@ -1120,7 +1122,7 @@ rfOut = train(XFull[1:cv_n,] , bike$BikeCount[1:cv_n],
 
 ```
 
-The hyperparameters of our model are evaluated using TSCV, yielding an optimal *mtry* value of 53. @probst suggests that such a high value usually indicates a high number of relevant predictors.
+The hyperparameters of our model are evaluated using cross-validation, yielding an optimal *mtry* value of 53. @probst suggests that such a high value usually indicates a high number of relevant predictors.
 
 #### XGBoost 
 
@@ -1146,7 +1148,7 @@ Then a base learner $h_m(x)$ is fit to the pseudo-residuals using the modified t
 
 XGBoost is a more regularized form of Gradient Boosting which uses L1 and L2 regularization to improve model generalization capabilities. It also allows for parallel processing and has a built-in routine for handling missing values via its sparsity-aware split finding algorithm.
 
-There are a variety of booster parameters in XGBoost that can be optimized via TSCV. Rather than tuning all parameters simultaneously, @banerjee found it often helps to make small changes incrementally. The general idea is to start with a high learning rate and a small number of base learners, then tune other parameters, and finally decrease the learning rate while proportionally increasing the number of trees. The other adjusted parameters are the maximum depth of a tree *max_depth*, the minimum required loss reduction *gamma*, the fraction of columns to be subsampled *colsample_bytree*, the minimum sum of weights of all observations required in a child *min_child_weight*, and the fraction of observations to be randomly sampled per tree *subsample*.
+There are a variety of booster parameters in XGBoost that can be optimized via cross-validation. Rather than tuning all parameters simultaneously, @banerjee found it often helps to make small changes incrementally. The general idea is to start with a high learning rate and a small number of base learners, then tune other parameters, and finally decrease the learning rate while proportionally increasing the number of trees. The other adjusted parameters are the maximum depth of a tree *max_depth*, the minimum required loss reduction *gamma*, the fraction of columns to be subsampled *colsample_bytree*, the minimum sum of weights of all observations required in a child *min_child_weight*, and the fraction of observations to be randomly sampled per tree *subsample*.
 
 ```{r XGBoost, error=F, message=FALSE, warning=FALSE, include=FALSE, eval = FALSE}
 # Tuning Steps:
@@ -1185,7 +1187,7 @@ boostOut = train(XFull[1:cv_n, ] , bike$BikeCount[1:cv_n],
 
 LSTM is a variety of Recurrent Neural Networks (RNNs). According to @hochreiter_1997_long, the benefit of the Long Short-Term Memory (LSTM) network over other recurrent networks comes from "constant error backpropagation," an improved method of back-propagating the error.
 
-```{r LSTM note, echo=FALSE, fig.cap="The repeating module in an LSTM contains four interaction layers. Images borrowed from @colah's blog.", out.width = '80%'}
+```{r LSTM note, echo=FALSE, fig.cap="The repeating module in an LSTM contains four interaction layers. Images borrowed from @colah 's blog.", out.width = '80%'}
 knitr::include_graphics("LSTM-chain.png")
 knitr::include_graphics("LSTM2-notation.png")
 ```
@@ -1231,7 +1233,7 @@ to the range $[0,1]$, which is the range for floating-point values where we
 have the most precision. A value is normalized as follows:
 
 \begin{equation}
-y = \frac{x-\min\{x\}}{\max\{x\}-\min\{x\}}
+\tau_i^* = \frac{\tau_i-\min\{\vec\tau\}}{\max\{\vec\tau\}-\min\{\vec\tau\}}
 \end{equation}
 
 ```{r python setup, include=FALSE}
@@ -1901,13 +1903,13 @@ period $t$. Then,
 \label{eq:error}
 \hat{e}_t&=y_t-\hat{y}_t\\
 \label{eq:mae}
-\text{Mean Absolute Error}&=\frac{1}{nm}\sum_{i=1}^n\sum_{j=1}^m|e_{ij}|\\
+\text{Mean Absolute Error}&=\frac{1}{\mu \iota}\sum_{i=1}^\mu\sum_{j=1}^\iota |e_{ij}|\\
 \label{eq:rmse}
-\text{Root Mean Squared Error}&=\sqrt{\frac{1}{nm}\sum_{i=1}^n\sum_{j=1}^me_{ij}^2}
+\text{Root Mean Squared Error}&=\sqrt{\frac{1}{\mu \iota}\sum_{i=1}^\mu\sum_{j=1}^\iota e_{ij}^2}
 \end{align}
 
-Where $m=24$ is the number of periods for which bike count is forecast (the
-horizon) and $n=50$ is the number of iterations (folds) in the 
+Where $\iota=24$ is the number of periods for which bike count is forecast (the
+horizon) and $\mu=50$ is the number of iterations (folds) in the 
 time series cross-validation.
 
 ## Model Selection
@@ -2040,9 +2042,9 @@ A common-sense, non-machine learning baseline serves as a sanity check and is
 often used to establish a baseline of comparison for more advanced machine
 learning models. 
 
-In this case, bike demand can be assumed to be a season with a daily (24 hours)
+In this case, bike demand can be assumed to be seasonal with a daily (24 hours)
 period.
-Given hourly data, a common-sense baseline is to predict the bike demand at
+Given hourly data, a common-sense baseline is to predict the bike demand ($x_t$) at
 time $t$ to be equal to the bike demand at time $t-24$, the same hour the
 previous day. In the time series
 paradigm, this is known as a Seasonal NAIVE (SNAIVE) model.
@@ -2190,7 +2192,7 @@ As with most machine learning models, future research into this application
 could focus on the inclusion of additional predictor variables and more
 recent bike usage data. One key deficit of the models presented in this analysis
 is that they do not account for spatial variation in demand. That is, what is
-the geographic distribution of bike demand at each hour. Understanding not just
+the geographic distribution of bike demand at each hour? Understanding not just
 the total number of bikes demanded but also *where* in the city the bikes are
 needed would allow the administrators of the bike-sharing to reallocate available
 bikes from areas of low demand to areas of high demand. Adding a geospatial
