@@ -5,7 +5,7 @@ author:
   - Max Kutschinski
   - Pei-Yin Yang
 date: "`r Sys.Date()`"
-abstract: City-wide bike sharing programs have gained in popularity among major cities in recent years, providing an attractive alternative to cars and other forms of transportation. A key factor in the program’s success is the efficient allocation of rental bikes across the city. This study aims to predict bike demand based on time differences by making hourly forecasts over a 24-hour horizon, enabling policymakers to get a better picture of the next day’s bike demand. We developed time series models, as well as deep learning and tree-based models, and compared them using time series cross-validation with Mean Absolute Error (MAE) as the evaluation criterion. The best-performing model is based on the LSTM architecture, which yielded a test prediction MAE less than half that of the naïve baseline forecast. This study addresses the time-dependent aspect of bike demand, but further studies are needed to investigate spatial variations.
+abstract: City-wide bike sharing programs have gained in popularity among major cities in recent years, providing an attractive alternative to cars and other forms of transportation. A key factor in the program’s success is the efficient allocation of rental bikes across the city. This study aims to predict bike demand based on time differences by making hourly forecasts over a 24-hour horizon, enabling policymakers to get a better picture of the next day’s bike demand. We developed time series, deep learning, and tree-based models and compared them using time series cross-validation with Mean Absolute Error (MAE) as the evaluation criterion. The best-performing model is based on the LSTM architecture, which yielded a test prediction MAE less than half that of the naïve baseline forecast. This study addresses the time-dependent aspect of bike demand, but further studies are needed to investigate spatial variations.
 output:
   pdf_document:
     citation_package: natbib
@@ -89,23 +89,21 @@ mykable <- function(...) {
 
 # Introduction
 
-While the concept of renting transportation has been around for decades in
-the form of rental car companies, such as those often found at airports, it
-has also been adapted to the modern "sharing economy" in the form of
-bikeshare programs. These programs, often offered by local governments, allow
+While renting transportation has been around for decades in rental car companies, such as those often found at airports, it
+has also been adapted to the modern "sharing economy" through
+bike-sharing programs. These programs, often offered by local governments, allow
 users to rent bicycles for individual (point-to-point) trips, such as commuting
 to and from work. Cycling can be a faster mode of transportation than walking
 and might even be faster than driving or taking a taxi in the most congested
 of cities. Finally, bicycles offer a lower-pollution alternative to driving,
 which can be appealing to cities struggling to contain emissions.
 
-A key challenge faced by administrators of bikesharing programs is the efficient
-allocation of available bicycles. Bikes must be available in the places that
-people need them and at the time they are needed in order for the program to
-be effective. In order to efficiently allocate bikes,
+A key challenge faced by administrators of bike-sharing programs is the efficient
+allocation of available bicycles. Bikes must be available where people need them 
+and at the time they are needed for the program to be effective. In order to efficiently allocate bikes,
 @schuijbroek suggest administrators can
 periodically transport bikes from areas of low demand to areas of high demand.
-Demand in a bikeshare system is a function of both time
+Demand in a bike-sharing system is a function of both time
 and location. In this paper, we focus on the time component of
 the demand for bicycles at each hour of the day, ignoring the spatial
 component of demand. We will use the Seoul Bike Sharing Demand data from
@@ -126,18 +124,17 @@ the data. The fifth section describes the
 for measuring model performance and selecting the best model. The penultimate
 section presents the [results](#results) of the analysis and a discussion in
 the context of the problem to be solved. Finally, the [conclusion](#conclusion)
-provides suggestions for action and application of the results, while also
-highlighting potential areas of future research.
+provides suggestions for action and application of the results while highlighting potential areas for future research.
 
 # Literature
 
-The popularity and accessibility of the Seoul bike dataset has resulted in its
-use for numerous studies. A majority of these studies have focused on the
+The popularity and accessibility of the Seoul bike dataset have resulted in its
+use in numerous studies. A majority of these studies have focused on the
 use of various machine learning algorithms. @sathishkumar found that
 a CUBIST model, which combines tree- and regression-based methods into a series
 of rules, performed best on the Seoul data when measured by $R^2$ and RMSE on
 the testing dataset. @gao found that another tree-based
-method, random forest (RF), performed best on a similar bikeshare dataset when
+method, random forest (RF), performed best on a similar bike-sharing dataset when
 measured by $R^2$ and RMSE. Both studies further showed
 that weather-related variables, such as temperatures and precipitation, were
 among the most important for predicting demand. Gao and Chen's results
@@ -153,9 +150,9 @@ frequent errors. This reinforces the importance of using multiple metrics when
 evaluating predictions.
 
 Considerably fewer researchers have made use of traditional time series
-methodologies when predicting demand of a similar nature to the bikeshare data.
+methodologies when predicting demand of a similar nature to the bike-sharing data.
 Both @sathishkumar and @gao make use of temporal variables such as hour,
-day of the week, and holidays. In each case they were found to be of moderate or
+day of the week, and holidays. In each case, they were found to be of moderate or
 high importance. @gao applied linear regression using temporal
 variables such as a weekend indicator as a predictor, but this model greatly
 underperformed the machine learning methods. Further, there is no discussion of
@@ -235,7 +232,7 @@ The dataset consists of `r scales::comma(nrow(bikets))` hourly observations of
 `r ncol(bikets)-1` variables from
 `r paste(range(bikets$Hour), collapse = " to ")`. There are
 `r sum(is.na(bikets$BikeCount))` observations where *BikeCount*=0 due to the
-bikeshare system not functioning. There are no other periods where
+bike-sharing system not functioning. There are no other periods where
 *BikeCount*=0. Table \ref{tab:var-defs} contains information on the variables in
 the dataset, including the variable type.
 
@@ -270,8 +267,8 @@ tstests <- features(bikets, BikeCount, c(unitroot_kpss,
 ```
 
 @kpss's test yields $p=$ `r tstests$kpss_pvalue`, meaning there is strong
-evidence in favor of the presence of a unit root and the data is likely
-non-stationary. @ljung's test was conducted up to 24 lags which
+evidence in favor of the presence of a unit root, and the data is likely
+non-stationary. @ljung's test was conducted up to 24 lags, which
 resulted in a test statistics of `r round(tstests$lb_stat)` with
 $p=$ `r tstests$lb_pvalue`, indicating strong evidence that there is serial
 correlation in the hourly bike count. The acf plot in Figure 1 shows
@@ -306,7 +303,7 @@ newpage = FALSE
 ```
 
 Figure \ref{fig:season-plots} highlights various seasonal and temporal patterns in the data. There
-is certainly an effect based on the hour of day, with demand increasing
+is certainly an effect based on the hour of the day, with demand increasing
 sharply in the morning, presumably during the morning commute, before decreasing
 into the lunchtime hour. From there, demand rises steadily through the evening
 commute before peaking around dinner time and then falling through the
@@ -314,8 +311,8 @@ nighttime hours. Variability also appears greater during the evening hours,
 which is consistent with the idea of heteroscedasticity; the variance increases
 with the level of the series. Demand appears slightly higher during 
 workdays (where workdays are weekdays that are not holidays) and weekdays,
-though the difference does not appear particularly large. There are a number
-of large positive outliers during the weekdays. Finally, demand appears
+though the difference does not appear particularly large. There are many
+large positive outliers during the weekdays. Finally, demand appears
 largest during the summer months and smallest during the winter, as biking would
 be a less desirable option in the cold.
 
@@ -385,21 +382,21 @@ is a 4-week sample of hourly bike demand, with non-workdays (weekends and
 holidays) highlighted in red. While these days appear to follow a consistent
 hourly pattern much like the workdays, we can see that there is a difference
 between the seasonality of workdays and the seasonality of non-workdays. Most
-notably, the troughs in demand appear consistent between the types of days
-while the peaks are consistently higher for workdays as compared to
-non-workdays. This changing seasonality based on type of day will need to be
-captured in our model.
+notably, the troughs in demand appear consistent between the type of days, while 
+the peaks are consistently higher for workdays compared to non-workdays. 
+This changing seasonality based on the type of days will need to be captured in our model.
+
 
 Continuing with the impact of seasonality and temperature on demand, we will
-next explore covariates included with the dataset.
+next explore covariates included in the dataset.
 
 ## Covariates
 
-This dataset includes a number of covariates to aid in modeling bike demand.
-All of these covariates are listed in Table 1, along with their definitions.
-The covariates fall into one of two broad categories: weather and
-social. Weather covariates include variables such as temperature, humidity,
-precipitation, and others. Social variables capture the impact of calendar-based
+This dataset includes several covariates to aid in modeling bike demand. 
+These covariates are listed in Table 1, along with their definitions. 
+The covariates fall into one of two broad categories: weather and social. 
+Weather covariates include temperature, humidity, precipitation, and others. 
+Social variables capture the impact of calendar-based
 human behavior, such as holidays and weekends.
 
 ```{r covariate-timeplot, fig.cap="Hourly time plots of covariates", fig.height=4.5}
@@ -469,7 +466,7 @@ might better represent this relationship. However, there is significant
 multicollinearity between temperature and dewpoint ($\rho=0.913$), so
 additional analysis will be required to isolate the effect of each variable.
 Finally, we can see that a number of the covariates, such as wind speed,
-visibility, solar radiation, rainfall, and snowfall, all appear to follow
+visibility, solar radiation, rainfall, and snowfall all appear to follow
 non-normal distributions. As such, their relationship to bike count might be
 best represented with a higher-order polynomial or other non-linear
 relationship.
@@ -478,8 +475,8 @@ relationship.
 
 The modeling methods we have chosen for predicting bike demand fall into
 roughly two categories: parametric time series modeling and non-parametric
-machine learning. The parametric time series models include traditional
-time series methods like ARIMA and modern methods including the regression-based
+machine learning. The parametric time series models include traditional 
+methods like ARIMA and modern methods, including the regression-based
 Prophet and dynamic linear model FASSTER. The non-parametric machine learning
 methods include random forests, boosted trees, and Long Short-Term Memory
 neural networks.
@@ -488,11 +485,11 @@ The stated goal of this analysis is to predict bike demand, not to conduct
 statistical inference (on the factors that impact bike demand). Therefore, the
 non-parametric methods can be used freely despite their typical lack of
 inferential ability. Further, we do not have to constrain ourselves to the
-typical assumptions of parametric methods that are required for inference,
-namely independent observations and normally distributed residuals with
-mean zero and constant variance. The assumption of independent observations is
-obviously violated in time series data and most often appears in the form of
-autocorrelated errors. Therefore, the ability to disregard the assumptions
+typical assumptions of parametric methods required for inference: independent 
+observations and normally distributed residuals with mean zero and constant variance. 
+The assumption of independent observations is obviously violated in time series data 
+and most often appears in the form of autocorrelated errors. 
+Therefore, the ability to disregard the assumptions
 required for inference in favor of a focus on prediction will greatly expand
 the number of viable methods for modeling the data.
 
@@ -680,17 +677,17 @@ for a $SARIMA(1,0,1)\times(5,1,0)_{24}$ model
 has been reduced over the $ARIMAX(2,1,2)$ with fourier terms, there is still
 repeating statistically significant autocorrelation.
 
-Finally, we will test a SARIMAX model that makes use of two derived
+Finally, we will test a SARIMAX model using two derived
 variables. First, as was seen in Figure \ref{fig:corrplot}, there appears to
 be a higher-order relationship between temperature and bike count. Therefore,
-we will add a $\text{Temperature}^2$ term to the model. Additionally, as can
-be seen in Figure \ref{fig:covariate-timeplot}, Rainfall and Snowfall are both
-continuous variables that have a large number of zero values. We believe it is
+we will add a $\text{Temperature}^2$ term to the model. Additionally, 
+as shown in Figure \ref{fig:covariate-timeplot}, Rainfall and Snowfall 
+are continuous variables with a large number of zero values. We believe it is
 a reasonable assumption that the presence or absence of Rainfall or Snowfall
 will have the largest impact on the bike count, and the quantity of rain or snow
 is only marginal in effect compared with the presence or absence rain or snow.
 Further, we believe that any precipitation, regardless of type, will impact
-bike count, and the type (and quantity) of precipitation is of much less
+bike count and the type (and quantity) of precipitation is of much less
 importance. Therefore, we will create a derived indicator variable
 `Precipitation_Flag` to identify the presence of any precipitation,
 defined as follows:
@@ -762,9 +759,9 @@ where:
 
 One major benefit of (\ref{eq:prophet}) is that it is much faster to fit than
 a model with ARIMA terms. The downside is that it does not explicitly capture
-(non-seasonal) $AR(p)$ and $MA(q)$ terms. As @prophet note, because this is
-a curve-fitting exercise rather than a generative model, missing values do
-not need to be manually imputed. Instead, the curves $g(t)$, $s_d(t,m)$, and
+(non-seasonal) $AR(p)$ and $MA(q)$ terms. As @prophet notes, missing values need not
+be manually imputed because this is a curve-fitting exercise rather 
+than a generative model. Instead, the curves $g(t)$, $s_d(t,m)$, and
 $s_w(t,n)$ are fit to the raw data and then used to impute the missing values.
 Further, as with the ARIMA model, the presence of the covariates helps to
 control for any missingness that might be related to one of the covariates.
@@ -902,7 +899,7 @@ ncol = 2)
 
 As can be seen from the PACF of the residuals in Figure \ref{fig:prophet-resid},
 there is still autocorrelation not captured by the model. Therefore, the
-model point estimates will be valid but prediction
+model point estimates will be valid, but prediction
 intervals cannot be generated due to the error structure. This is to be expected,
 as @prophet notes that the design of Prophet as a curve-fitting exercise, rather
 than a generative model (such as ARIMA) that captures the temporal dependence
@@ -919,23 +916,22 @@ model (Figure \ref{fig:auto-sarima}) and the Prophet model (Figure \ref{fig:prop
 the seasonal "spikes" are parabolic in shape. That is, the PACF starts high
 at lag 24, then decreases until reaching a min around lag 72 or
 lag 96 before rising again to another peak at lag 168 (which is
-the one week lag). This shape might be why the AR and fourier terms are not
-capturing all of the autocorrelation in the data: the strength of the
+the one-week lag). This shape might be why the AR and fourier terms are not
+capturing all of the autocorrelations in the data: the strength of the
 correlation appears to be a non-linear function of time.
 One reason for this
-shape in the PACF plot could be the presence of switching seasonality. More
-specifically, it's possible that the seasonality effects (not just the series itself)
-is different on working days and non-working days. A
-hand-wavy analysis would say that, given there are seven days in a
-week, any single day is, on "average", $7/2=3.5$ days away from any other day.
+shape in the PACF plot could be the presence of switching seasonality. More specifically, 
+the seasonality effects (not just the series itself) may possibly differ on working and non-working 
+days. A hand-wavy analysis would say that, given seven days a week, any day is, on "average,"
+$7/2=3.5$ days away from any other day.
 For weekdays specifically, they are 3.5 days away from a weekend (again, on
 average).
-Therefore, the trough in the PACF curve occurring between 3 and 4 days
+Therefore, the trough in the PACF curve occurs between 3 and 4 days
 might be due to that lag most frequently correlating weekdays with weekend days,
-resulting in lower correlation than when weekdays are compared with other
+resulting in a lower correlation than when weekdays are compared with other
 weekdays, which would occur most frequently at lags $<3$ and $>4$. This is
 certainly not a technical explanation of the pattern, but it is plausible. The
-previously employed techniques (SARIMAX and Prophet) don't allow for changing
+previously employed techniques (SARIMAX and Prophet) do not allow for changing
 seasonality.
 
 @fasster's fasster methodology allows for the seasonal (and trend)
@@ -949,7 +945,7 @@ a workday or non-workday. Equations \ref{eq:fasster-obs} and
 @fasstereqns describe the two functions that support this methodology.
 The terms $F_t$ and $G$ operate together to allow for different hourly seasonality
 components for workdays and non-workdays. For example, the effect
-(coefficient) of the 8:00AM hour can be different for a workday and a
+(coefficient) of the 8:00 AM hour can be different for a workday and a
 non-workday.
 This is an improvement over the previous models,
 which simply include the *Workday* variable as a regression coefficient,
@@ -1101,7 +1097,7 @@ Random forests is an ensemble method for regression and classification tasks tha
 \end{equation}
 One notable drawback of bagging is that the individual trees can be very correlated depending on how strong the predictors are. Random forests address this issue by randomly selecting a subset of the features at each split and thus de-correlating the trees.
 
-Random Forests (RF) is implemented using the ranger package for increased computational speed. @JMLRdelgado14a notes that RF is an algorithm that is known to provide good results in the default settings. The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features that are available at each split. In the regression case, p/3 is the default setting. When executing ranger via caret it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
+Random Forests (RF) is implemented using the ranger package for increased computational speed. @JMLRdelgado14a notes that RF is an algorithm known to provide good results in the default settings. The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features available at each split. In the regression case, p/3 is the default setting. When executing ranger via caret, it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
 
 ```{r rf, echo=F, warning=F, message=F, error=F, include=F, eval = FALSE}
 cv_n <- nrow(bike)-(24*50)
@@ -1124,11 +1120,11 @@ rfOut = train(XFull[1:cv_n,] , bike$BikeCount[1:cv_n],
 
 ```
 
-The hyperparameters of our model are evaluated using TSCV, yielding an optimal *mtry* value of 53. @probst suggests that such a high value is usually indicative of a high number of relevant predictors.
+The hyperparameters of our model are evaluated using TSCV, yielding an optimal *mtry* value of 53. @probst suggests that such a high value usually indicates a high number of relevant predictors.
 
 #### XGBoost 
 
-XGBoost is an advanced implementation of Gradient Boosting, which is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
+XGBoost is an advanced implementation of Gradient Boosting, which is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing a signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
 
 The first step is to initialize the model $F(x)$ with a constant value $\gamma$, which can be obtained by minimizing it with respect to a loss function L, as displayed in the following optimization problem:
 \begin{equation} 
@@ -1148,7 +1144,7 @@ Then a base learner $h_m(x)$ is fit to the pseudo-residuals using the modified t
 \end{equation}
 \begin{center}where $\gamma_m=\argmin_{\gamma}\sum_{i=1}^{n}L(y_i,F_{m-1}(x_i)+\gamma h_m(x_i))$\end{center}
 
-XGBoost is a more regularized form of Gradient Boosting which uses L1 and L2 regularization to improve model generalization capabilities. It also allows for parallel processing, and has a built-in routine for handling missing values via its sparsity-aware split finding algorithm.
+XGBoost is a more regularized form of Gradient Boosting which uses L1 and L2 regularization to improve model generalization capabilities. It also allows for parallel processing and has a built-in routine for handling missing values via its sparsity-aware split finding algorithm.
 
 There are a variety of booster parameters in XGBoost that can be optimized via TSCV. Rather than tuning all parameters simultaneously, @banerjee found it often helps to make small changes incrementally. The general idea is to start with a high learning rate and a small number of base learners, then tune other parameters, and finally decrease the learning rate while proportionally increasing the number of trees. The other adjusted parameters are the maximum depth of a tree *max_depth*, the minimum required loss reduction *gamma*, the fraction of columns to be subsampled *colsample_bytree*, the minimum sum of weights of all observations required in a child *min_child_weight*, and the fraction of observations to be randomly sampled per tree *subsample*.
 
@@ -1187,20 +1183,16 @@ boostOut = train(XFull[1:cv_n, ] , bike$BikeCount[1:cv_n],
 
 ### Long Short-Term Memory (LSTM) Recurrent Neural Network
 
-LSTM is a variety of Recurrent Neural Network (RNN). According to
-@hochreiter_1997_long, the benefit of the
-Long Short-Term Memory (LSTM) network over other recurrent networks comes
-from "constant error back propagation",
-an improved method of back-propagating the error.
+LSTM is a variety of Recurrent Neural Networks (RNNs). According to @hochreiter_1997_long, the benefit of the Long Short-Term Memory (LSTM) network over other recurrent networks comes from "constant error backpropagation," an improved method of back-propagating the error.
 
 ```{r LSTM note, echo=FALSE, fig.cap="The repeating module in an LSTM contains four interaction layers. Images borrowed from @colah's blog.", out.width = '80%'}
 knitr::include_graphics("LSTM-chain.png")
 knitr::include_graphics("LSTM2-notation.png")
 ```
 
-The key to LSTMs is the cell state, the horizontal line running through the top of the graph. An LSTM features three gates: input, forget & output. Gates are a way to let information through optionally. They comprise a Sigmoid neural net layer and a pointwise multiplication operation.
+The key to LSTMs is the cell state, the horizontal line running through the top of the graph. An LSTM features three gates: input, forget, and output. Gates allow information to pass through optionally. They comprise a Sigmoid neural net layer and a pointwise multiplication operation.
 
-Let $X_{t}$ be the input and $h_{t}$ be the output at time t. At time t, the equation of gates, input and output of the LSTM cell are as follows:
+Let $x_{t}$ be the input and $h_{t}$ be the output at time t. At time t, the equation of gates, input and output of the LSTM cell are as follows:
 
 \begin{align}
 i_{t}&=\sigma(W_{i}[x_{t}]+R_{i}[h_{t-1}]+b_{i})\\
@@ -1212,23 +1204,20 @@ h_{t}&=o_{t}\times \tanh(c_{t})
 
 where $i_{t}$, $f_{t}$, $o_{t}$ denotes input gate, forget gate and output gate respectively. The $g_{t}$ and $h_{t}$ refer to input and output of the LSTM cell respectively, and $h_{t-1}$ refers to the output of the previous LSTM cell. Sigmoid ($\sigma$) and $tanh$ are the activation functions to map the non-linearity.
 
-$c_{t}$ represents the Constant Error Carousel (CEC), the magic of the LSTM as it prevents vanishing gradients, it defines the memory cell to store the past state. It is denoted as follows:
+$c_{t}$ represents the Constant Error Carousel (CEC), the magic of the LSTM as it prevents vanishing gradients; it defines the memory cell to store the past state. It is denoted as follows:
 
 \begin{equation}
 c_{t}=c_{t-1} \times \text{forget gate} + \text{new input} \times \text{input gate}
 \end{equation}
 
-In the case of regular RNNs during backpropagation, the derivative of an
-activation function, such as a logistic, will be less than one. Therefore over
-time, the repeated multiplication of that value against the weights will lead
-to a vanishing gradient.
+For regular RNNs, the derivative of an activation function, such as a sigmoid, will be less than one during backpropagation. Therefore, repeated multiplications of that value against weights will lead to vanishing gradients over time.
 
 In the case of an LSTM, we only multiply 
 $\text{cell state} \times \text{forget gate}$,
 which acts as both the weights and the activation function for the cell state.
 As long as $\text{forget gate}=1$, the information from the previous cell
-state passes through unchanged. This is why LSTM can deal with more intricate
-problems than the RNN, by keeping a constant flow of error throughout the
+state passes through unchanged. This is why LSTMs can deal with more intricate
+problems than the RNNs by keeping a constant flow of error throughout the
 backpropagation from cell to cell.
 
 #### Data processing
@@ -1282,10 +1271,10 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 #### Model Training
 
 `keras`, a Python library developed by @keras, is used for model building.
-Each input data was a list of lagged hours of bike rental count and the output
+Each input data was a list of lagged hours of bike rental count, and the output
 data for that particular input was the bike demand for the next hour.
 One-hour, 12-hour, and 24-hour lagged timesteps are used for the input data.
-The processed dataset was partitioned into train and test set where about 86% 
+The processed dataset was partitioned into a train set and a test set where about 86% 
 of the total data was used for model training and the remaining 14% was used 
 for testing.
 
@@ -1317,7 +1306,7 @@ for the next 24 hours.
 
 Forecast performance is assessed using Mean Absolute Error (MAE),
 Root Mean Square Error (RMSE), and the learning curve. A good fit is identified
-by a training and validation loss that decreases to a point of stability with a
+by a training and validation loss that decreases to the point of stability with a
 minimal gap between the two final loss values.
 
 ```{python import-packages, include = FALSE, cache = FALSE}
@@ -1748,8 +1737,7 @@ lstmplot(history, inv_y, inv_yhat, 'Lag 12')
 ```
 
 The Loss vs Epoch curve is shown in Figure \ref{fig:lag12-forecast} in which the progress of mode
-while training is represented. Both training and testing loss decreases in a
-smooth fashion fairly quickly.  
+while training is represented. Both training and testing loss decreases smoothly and fairly quickly.  
 
 ##### Lag 24 Hours Model
 
@@ -1888,10 +1876,10 @@ lstmplot(history, inv_y, inv_yhat, 'Lag 24')
 ## Error
 
 Given that our stated use for these models is forecasting (prediction), when
-discussing model evaluation we must first define the notion of forecast
+discussing model evaluation, we must first define the notion of forecast
 (prediction) error rate.
 @fcacc define a number of different metrics to use for forecast error, each
-with their own benefits and drawbacks. 
+with its own benefits and drawbacks. 
 We will use Mean Absolute Error (MAE) to select the best model from among the
 list of candidate models. Unlike percent errors, which have the general form
 $100\times\frac{\hat{e}}{y_t}$, MAE is defined when $y_t=0$. Further, MAE
@@ -1899,9 +1887,9 @@ is on the same scale as the original dataset
 (number of bikes per hour), which gives it nice properties of interpretability.
 We will also report Root Mean Squared Error (RMSE), as it is a common error
 metric. According to @fpp3, using MAE will result in
-forecasts of the median while RMSE results in forecasts of the mean.
+forecasts of the median, while RMSE results in forecasts of the mean.
 Because our data appear skewed, the median is a more appropriate measure
-of center. Therefore,
+of the center. Therefore,
 MAE is the preferred error metric for selecting the best forecasting model and
 estimating test error. 
 
@@ -1959,16 +1947,15 @@ ggplot(df, aes(x = period, y = -iteration, label = type, color = type)) +
 
 Using the example in Figure \ref{fig:tscv-example}, the first iteration trains on the
 first 5 observations (blue) and generates forecasts on the next 3 observations 
-(green). In the second iteration the model trains on the first $5+3=8$
+(green). In the second iteration, the model trains on the first $5+3=8$
 observations and forecasts on the next 3 observations. This continues until
 the final iteration, where the model trains on all but the last 3 observations
 and then generates forecasts for the final 3 observations.
-In this example 5 is the initialization value (the number of training
+In this example, 5 is the initialization value (the number of training
 observations in the first iteration), 3 is the step size (the number of
 observations that are added to the training set each iteration), and 3 is also
 the horizon (the number of periods for which we generate a forecast).
-Each of the forecasts
-is then compared with actual (observed) values to evaluate the forecast.
+Each forecast is then compared with actual (observed) values to evaluate the forecast.
 
 
 ```{r test-set}
@@ -2053,7 +2040,7 @@ A common-sense, non-machine learning baseline serves as a sanity check and is
 often used to establish a baseline of comparison for more advanced machine
 learning models. 
 
-In this case, bike demand can be assumed to be season with a daily (24 hours)
+In this case, bike demand can be assumed to be a season with a daily (24 hours)
 period.
 Given hourly data, a common-sense baseline is to predict the bike demand at
 time $t$ to be equal to the bike demand at time $t-24$, the same hour the
@@ -2191,28 +2178,28 @@ have with such high-frequency data.
 
 The focus of this analysis has been on the ability to accurately forecast
 hourly bike demand for the next 24 hours using data from Seoul, South Korea's
-bike sharing program. This analysis shows that a `r best_model` generates the
+bike-sharing program. This analysis shows that a `r best_model` generates the
 most accurate forecast of demand, as measured by mean absolute error, with
 $MAE=$ `r round(best_mae)` bikes per hour. Assuming that this error rate is
-within the operational constraints of the bikeshare management organization
+within the operational constraints of the bike-sharing management organization
 (i.e. they can still make bike allocation decisions even with the given
 error rate), this model could be implemented immediately to help ensure an
 adequate number of bikes are available over the next 24 hours.
 
 As with most machine learning models, future research into this application
-could foucs on the inclusion of additional predictor variables and more
+could focus on the inclusion of additional predictor variables and more
 recent bike usage data. One key deficit of the models presented in this analysis
-are that they do not account for spatial variation in demand. That is, what is
+is that they do not account for spatial variation in demand. That is, what is
 the geographic distribution of bike demand at each hour. Understanding not just
 the total number of bikes demanded but also *where* in the city the bikes are
-needed would allow the administrators of the bikeshare to reallocate available
+needed would allow the administrators of the bike-sharing to reallocate available
 bikes from areas of low demand to areas of high demand. Adding a geospatial
 dimension to the demand would certainly increase the complexity of the prediction
 because it would require either numerous individual models (one for each geography)
 or a single model with a multivariate response that is a vector of the same length
 as the number of "locations" within the city where demand is captured. Although
 this would be a more complex problem, it would also be of significant more
-value to the bikeshare administrators, making it a strong candidate for
+value to the bike-sharing administrators, making it a strong candidate for
 subsequent research.
 
 \newpage
