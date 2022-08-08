@@ -655,14 +655,14 @@ regression residuals. The residual ACF and PACF plots from the fourier model
 (Figure \ref{fig:arima-fourier}) still show significant autocorrelation.
 Autocorrelation in the residuals violates the Gauss-Markov assumptions, meaning
 the model should not be used for inference. The goal of this analysis is to
-generate accurate (point) forecasts, which are still valid even when the errors
+generate point forecasts, which are still valid, albeit biased, even when the errors
 exhibit autocorrelation.
 
 Next, we will fit a linear regression with SARIMA errors to the data where
 all parameters
 $p,d,q,P,D,Q$ are chosen automatically using `fable::ARIMA`, which relies on
 the algorithm developed by @autoarima. This resulted in the selection of an
-$SARIMA(1,0,1)\times(5,1,0)_{24}$ for $x_t$.
+$SARIMA(1,0,1)\times(5,1,0)_{24}$ for $\epsilon_t$.
 
 ```{r auto-sarima, fig.height = 4, fig.cap="Residuals for an $SARIMAX(1,0,1)\\times(5,1,0)_{24}$"}
 # model(bikets_cv, ARIMA(box_cox(BikeCount, l) ~ pdq() + PDQ() + Dewpoint + Humidity + Rainfall + SolarRadiation + Temperature + Visibility + WindSpeed + Seasons + Workday))
@@ -945,7 +945,7 @@ coefficients can then be fit based on whether a bike count is observed on
 a workday or non-workday. Equations \ref{eq:fasster-obs} and
 \ref{eq:fasster-state} from
 @fasstereqns describe the two functions that support this methodology.
-The terms $F_t$ and $G$ operate together to allow for different hourly seasonality
+The terms $E_t$ and $G$ operate together to allow for different hourly seasonality
 components for workdays and non-workdays. For example, the effect
 (coefficient) of the 8:00 AM hour can be different for a workday and a
 non-workday.
@@ -1092,14 +1092,14 @@ XFull = XFull %>%
 
 #### Random Forests
 
-Random forests is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing $K$ unpruned trees from $K$ bootstrap samples and averaging the predictions $\hat{f}$ as displayed in Eq. (\ref{eq:rf}).
+Random forest is an ensemble method for regression and classification tasks that is built on decision trees. It extends on the idea of bootstrap aggregation, or bagging, which is used to reduce the variance of a statistical learning method via averaging. In the context of regression trees, this is done by constructing $K$ unpruned trees from $K$ bootstrap samples and averaging the predictions $\hat{f}$ as displayed in Eq. (\ref{eq:rf}).
 \begin{equation}
   \label{eq:rf}
   \hat{f}_{bag}(x)=\frac{1}{K}\sum_{\kappa=1}^{K}\hat{f^{*\kappa}}(x)
 \end{equation}
 One notable drawback of bagging is that the individual trees can be very correlated depending on how strong the predictors are. Random forests address this issue by randomly selecting a subset of the features at each split and thus de-correlating the trees.
 
-Random Forests (RF) is implemented using the ranger package for increased computational speed. @JMLRdelgado14a notes that RF is an algorithm known to provide good results in the default settings. The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features available at each split. In the regression case, `mtry=k/3` is the default setting, where k is the number of predictors. When executing ranger via caret, it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
+Random Forest (RF) is implemented using the ranger package for increased computational speed. @JMLRdelgado14a notes that RF is an algorithm known to provide good results in the default settings. The arguably most influential hyperparameter is *mtry*, the number of randomly drawn features available at each split. In the regression case, `mtry=k/3` is the default setting, where k is the number of predictors. When executing ranger via caret, it automatically performs a grid search of *mtry* its entire parameter space. By default, the algorithm evaluates 3 points in the parameter space (smallest and largest possible *mtry*, as well as their mean) with 25 bootstrap iterations as an evaluation strategy and chooses the value with the lowest MSE.
 
 ```{r rf, echo=F, warning=F, message=F, error=F, include=F, eval = FALSE}
 cv_n <- nrow(bike)-(24*50)
@@ -1126,7 +1126,7 @@ The hyperparameters of our model are evaluated using cross-validation, yielding 
 
 #### XGBoost 
 
-XGBoost is an advanced implementation of Gradient Boosting, which is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome Y. This has the effect of capturing a signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
+XGBoost is an advanced implementation of Gradient Boosting, which is an ensemble method for regression and classification tasks that combines multiple weak learners into a stronger learner. In the context of decision trees, a weak learner is defined as a tree with a small number of terminal nodes. The trees are grown sequentially and they are fit on the residuals of the current fit as opposed to the outcome $x_t$. This has the effect of capturing a signal that is not yet accounted for by the current set of trees. In addition, each weak learner is shrunken down by some shrinkage factor before it is used, making boosting a "slow" learning approach.
 
 The first step is to initialize the model $F(x)$ with a constant value $\gamma$, which can be obtained by minimizing it with respect to a loss function L, as displayed in the following optimization problem:
 \begin{equation} 
@@ -1134,7 +1134,7 @@ The first step is to initialize the model $F(x)$ with a constant value $\gamma$,
 \end{equation}
 After specifying the number of base learners M, the following steps are repeated for each base learner from m=1 to m=M:
 
-First, the pseudo-residuals $r_{im}$ are calculated for each ith training example.
+First, the pseudo-residuals $r_{im}$ are calculated for each $i$th training example.
  \begin{equation} 
   r_{im}= -\left[\displaystyle \frac{\partial L(y_i,F(x_i))}{\partial F(x_i)}\right]_{F(x)=F_{m-1}(x)}
  \end{equation}
@@ -1187,7 +1187,7 @@ boostOut = train(XFull[1:cv_n, ] , bike$BikeCount[1:cv_n],
 
 LSTM is a variety of Recurrent Neural Networks (RNNs). According to @hochreiter_1997_long, the benefit of the Long Short-Term Memory (LSTM) network over other recurrent networks comes from "constant error backpropagation," an improved method of back-propagating the error.
 
-```{r LSTM note, echo=FALSE, fig.cap="The repeating module in an LSTM contains four interaction layers. Images borrowed from @colah 's blog.", out.width = '80%'}
+```{r LSTM note, echo=FALSE, fig.cap="The repeating module in an LSTM contains four interaction layers. Images borrowed from \\citet{colah}'s blog.", out.width = '80%'}
 knitr::include_graphics("LSTM-chain.png")
 knitr::include_graphics("LSTM2-notation.png")
 ```
@@ -1233,7 +1233,7 @@ to the range $[0,1]$, which is the range for floating-point values where we
 have the most precision. A value is normalized as follows:
 
 \begin{equation}
-\tau_i^* = \frac{\tau_i-\min\{\vec\tau\}}{\max\{\vec\tau\}-\min\{\vec\tau\}}
+z_i^* = \frac{z_i-\min\{\vec z\}}{\max\{\vec z\}-\min\{\vec z\}}
 \end{equation}
 
 ```{r python setup, include=FALSE}
